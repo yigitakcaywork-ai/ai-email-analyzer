@@ -1,12 +1,4 @@
-import os
-import google.generativeai as genai
-from dotenv import load_dotenv
-
-load_dotenv()
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-model = genai.GenerativeModel("gemini-2.5-flash")
+from services.gemini_service import ask_gemini
 
 while True:
     prompt = input("Sen: ")
@@ -14,6 +6,6 @@ while True:
     if prompt.lower() == "çık":
         break
 
-    response = model.generate_content(prompt)
+    cevap = ask_gemini(prompt)
 
-    print("\nGemini:", response.text)
+    print("\nGemini:", cevap)

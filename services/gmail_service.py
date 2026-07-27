@@ -13,35 +13,60 @@ def get_gmail_service():
     creds = None
 
     if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        creds = Credentials.from_authorized_user_file(
+            "token.json",
+            SCOPES,
+        )
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 "credentials.json",
                 SCOPES,
             )
+
             creds = flow.run_local_server(port=0)
 
-        with open("token.json", "w", encoding="utf-8") as token_file:
+        with open(
+            "token.json",
+            "w",
+            encoding="utf-8",
+        ) as token_file:
             token_file.write(creds.to_json())
 
-    return build("gmail", "v1", credentials=creds)
+    return build(
+        "gmail",
+        "v1",
+        credentials=creds,
+    )
 
 
-def get_recent_emails(max_results: int = 5):
+def get_recent_emails(
+    max_results: int = 10,
+    after_unix_seconds: int | None = None,
+):
     service = get_gmail_service()
+
+    list_parameters = {
+        "userId": "me",
+        "maxResults": max_results,
+        "labelIds": ["INBOX"],
+    }
+
+    # Daha önce yapılan son taramadan sonraki
+    # e-postaları çekmek için kullanacağız.
+    if after_unix_seconds is not None:
+        list_parameters["q"] = (
+            f"after:{int(after_unix_seconds)}"
+        )
 
     result = (
         service.users()
         .messages()
-        .list(
-            userId="me",
-            maxResults=max_results,
-            labelIds=["INBOX"],
-        )
+        .list(**list_parameters)
         .execute()
     )
 
@@ -56,12 +81,21 @@ def get_recent_emails(max_results: int = 5):
                 userId="me",
                 id=message["id"],
                 format="metadata",
-                metadataHeaders=["From", "Subject", "Date"],
+                metadataHeaders=[
+                    "From",
+                    "Subject",
+                    "Date",
+                ],
             )
             .execute()
         )
 
-        headers = email_data.get("payload", {}).get("headers", [])
+        headers = (
+            email_data
+            .get("payload", {})
+            .get("headers", [])
+        )
+
         header_map = {
             header["name"]: header["value"]
             for header in headers
@@ -69,11 +103,43 @@ def get_recent_emails(max_results: int = 5):
 
         emails.append(
             {
-                "from": header_map.get("From", "Bilinmiyor"),
-                "subject": header_map.get("Subject", "Konu yok"),
-                "date": header_map.get("Date", "Tarih yok"),
-                "snippet": email_data.get("snippet", ""),
+                "gmail_id": email_data.get(
+                    "id",
+                    message["id"],
+                ),
+                "thread_id": email_data.get(
+                    "threadId",
+                    "",
+                ),
+                "internal_date": int(
+                    email_data.get(
+                        "internalDate",
+                        0,
+                    )
+                ),
+                "from": header_map.get(
+                    "From",
+                    "Bilinmiyor",
+                ),
+                "subject": header_map.get(
+                    "Subject",
+                    "Konu yok",
+                ),
+                "date": header_map.get(
+                    "Date",
+                    "Tarih yok",
+                ),
+                "snippet": email_data.get(
+                    "snippet",
+                    "",
+                ),
             }
         )
+
+    # En yeni e-posta üstte görünsün.
+    emails.sort(
+        key=lambda email: email["internal_date"],
+        reverse=True,
+    )
 
     return emails

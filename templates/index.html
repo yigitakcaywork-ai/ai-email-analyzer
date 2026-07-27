@@ -21,6 +21,11 @@
             color: #e5e7eb;
         }
 
+        button,
+        input {
+            font: inherit;
+        }
+
         .page-shell {
             width: min(1180px, 92%);
             margin: 0 auto;
@@ -113,6 +118,7 @@
 
         .hero-main h2 span {
             background: linear-gradient(90deg, #a78bfa, #60a5fa);
+            background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
         }
@@ -139,7 +145,9 @@
             font-size: 15px;
             font-weight: 800;
             box-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
         }
 
         .analyze-button:hover {
@@ -172,10 +180,6 @@
         }
 
         .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: end;
-            gap: 20px;
             margin: 36px 0 18px;
         }
 
@@ -197,6 +201,7 @@
             border-radius: 15px;
             background: rgba(127, 29, 29, 0.32);
             color: #fecaca;
+            overflow-wrap: anywhere;
         }
 
         .email-grid {
@@ -250,6 +255,7 @@
             color: #94a3b8;
             font-size: 13px;
             line-height: 1.7;
+            overflow-wrap: anywhere;
         }
 
         .score-box {
@@ -322,7 +328,7 @@
             background: rgba(30, 41, 59, 0.62);
         }
 
-        .analysis-box.full-width {
+        .full-width {
             grid-column: 1 / -1;
         }
 
@@ -338,6 +344,62 @@
         .analysis-text {
             color: #e2e8f0;
             line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
+
+        .reply-section {
+            grid-column: 1 / -1;
+            margin-top: 4px;
+        }
+
+        .reply-button,
+        .copy-button {
+            border: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            color: white;
+            font-weight: 800;
+            transition:
+                transform 0.2s ease,
+                opacity 0.2s ease;
+        }
+
+        .reply-button {
+            width: 100%;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            font-size: 14px;
+        }
+
+        .copy-button {
+            margin-top: 14px;
+            padding: 11px 15px;
+            background: rgba(71, 85, 105, 0.9);
+        }
+
+        .reply-button:hover,
+        .copy-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .reply-button:disabled {
+            cursor: wait;
+            opacity: 0.65;
+        }
+
+        .reply-result {
+            margin-top: 14px;
+            padding: 18px;
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-radius: 16px;
+            background: rgba(76, 29, 149, 0.12);
+        }
+
+        .reply-text {
+            white-space: pre-wrap;
+            color: #e2e8f0;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
         }
 
         .empty-state {
@@ -376,7 +438,7 @@
                 grid-template-columns: 1fr;
             }
 
-            .analysis-box.full-width {
+            .full-width {
                 grid-column: auto;
             }
         }
@@ -438,7 +500,7 @@
 
                 <p>
                     Gelen kutundaki e-postaları analiz et, önemli mesajları fark et,
-                    aciliyeti belirle ve yapman gereken işlemi saniyeler içinde öğren.
+                    aciliyeti belirle ve profesyonel cevap taslakları oluştur.
                 </p>
 
                 <a href="/analyze" class="analyze-button">
@@ -468,10 +530,8 @@
 
         <section>
             <div class="section-header">
-                <div>
-                    <h3>Gelen kutusu analizi</h3>
-                    <p>Gemini tarafından oluşturulan son analizler.</p>
-                </div>
+                <h3>Gelen kutusu analizi</h3>
+                <p>Gemini tarafından oluşturulan son analizler.</p>
             </div>
 
             {% if error %}
@@ -511,6 +571,7 @@
 
                                 <div class="score-box">
                                     <div class="score-label">Önem</div>
+
                                     <div class="score-value">
                                         {{ result.importance_score }}/10
                                     </div>
@@ -526,12 +587,10 @@
                                     <span class="badge badge-high">
                                         🔴 Yüksek aciliyet
                                     </span>
-
                                 {% elif result.urgency == "Orta" %}
                                     <span class="badge badge-medium">
                                         🟡 Orta aciliyet
                                     </span>
-
                                 {% else %}
                                     <span class="badge badge-low">
                                         🟢 Düşük aciliyet
@@ -549,6 +608,7 @@
                             </div>
 
                             <div class="analysis-grid">
+
                                 <div class="analysis-box full-width">
                                     <div class="analysis-label">
                                         AI Özeti
@@ -582,8 +642,38 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                            </div>
 
+                                <div class="reply-section">
+                                    <button
+                                        type="button"
+                                        class="reply-button"
+                                        data-sender="{{ result.sender|e }}"
+                                        data-subject="{{ result.subject|e }}"
+                                        data-snippet="{{ result.snippet|e }}"
+                                        data-summary="{{ result.summary|e }}"
+                                        onclick="generateReply(this)"
+                                    >
+                                        ✨ AI ile Cevap Taslağı Oluştur
+                                    </button>
+
+                                    <div class="reply-result" hidden>
+                                        <div class="analysis-label">
+                                            AI Cevap Taslağı
+                                        </div>
+
+                                        <div class="reply-text"></div>
+
+                                        <button
+                                            type="button"
+                                            class="copy-button"
+                                            onclick="copyReply(this)"
+                                        >
+                                            📋 Panoya Kopyala
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
                         </article>
 
                     {% endfor %}
@@ -593,7 +683,9 @@
             {% elif not error %}
                 <div class="empty-state">
                     <div class="empty-icon">📬</div>
+
                     <h4>Henüz analiz yapılmadı</h4>
+
                     <p>
                         Son e-postalarını değerlendirmek için analiz butonuna bas.
                     </p>
@@ -602,5 +694,87 @@
         </section>
 
     </main>
+
+    <script>
+        async function generateReply(button) {
+            const replySection = button.closest(".reply-section");
+            const replyResult = replySection.querySelector(".reply-result");
+            const replyText = replySection.querySelector(".reply-text");
+
+            const originalText = button.textContent.trim();
+
+            button.disabled = true;
+            button.textContent = "⏳ Cevap hazırlanıyor...";
+
+            replyResult.hidden = false;
+            replyText.textContent = "Gemini cevap taslağını hazırlıyor...";
+
+            try {
+                const response = await fetch("/generate-reply", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        sender: button.dataset.sender,
+                        subject: button.dataset.subject,
+                        snippet: button.dataset.snippet,
+                        summary: button.dataset.summary
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.error || "Cevap taslağı oluşturulamadı."
+                    );
+                }
+
+                replyText.textContent = data.reply;
+                button.textContent = "🔄 Cevabı Yeniden Oluştur";
+
+            } catch (error) {
+                replyText.textContent = `Hata: ${error.message}`;
+                button.textContent = originalText;
+
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+
+        async function copyReply(button) {
+            const replySection = button.closest(".reply-section");
+
+            const replyText = replySection
+                .querySelector(".reply-text")
+                .textContent
+                .trim();
+
+            if (
+                !replyText ||
+                replyText.startsWith("Hata:") ||
+                replyText.includes("hazırlıyor")
+            ) {
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(replyText);
+
+                const originalText = button.textContent;
+
+                button.textContent = "✅ Kopyalandı";
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1600);
+
+            } catch (error) {
+                button.textContent = "❌ Kopyalama başarısız";
+            }
+        }
+    </script>
 </body>
 </html>

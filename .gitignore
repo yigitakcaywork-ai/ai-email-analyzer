@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 credentials.json
 token.json
+email_analyzer.db
+email_analyzer.db-shm
+email_analyzer.db-wal

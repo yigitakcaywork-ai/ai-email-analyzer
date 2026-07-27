@@ -74,12 +74,11 @@
             width: 54px;
             height: 54px;
             border-radius: 17px;
-            background:
-                linear-gradient(
-                    135deg,
-                    #7c3aed,
-                    #2563eb
-                );
+            background: linear-gradient(
+                135deg,
+                #7c3aed,
+                #2563eb
+            );
             box-shadow:
                 0 14px 34px
                 rgba(37, 99, 235, 0.35);
@@ -226,12 +225,11 @@
         }
 
         .hero-main h2 span {
-            background:
-                linear-gradient(
-                    90deg,
-                    #a78bfa,
-                    #60a5fa
-                );
+            background: linear-gradient(
+                90deg,
+                #a78bfa,
+                #60a5fa
+            );
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
@@ -245,7 +243,8 @@
             line-height: 1.75;
         }
 
-        .analyze-button {
+        .analyze-button,
+        .back-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -253,48 +252,37 @@
             margin-top: 27px;
             padding: 15px 23px;
             border-radius: 13px;
-            background:
-                linear-gradient(
-                    135deg,
-                    #7c3aed,
-                    #2563eb
-                );
             color: white;
             text-decoration: none;
             font-size: 15px;
             font-weight: 900;
-            box-shadow:
-                0 14px 30px
-                rgba(37, 99, 235, 0.28);
             transition:
                 transform 0.2s ease,
                 box-shadow 0.2s ease;
         }
 
-        .analyze-button:hover {
-            transform: translateY(-2px);
+        .analyze-button {
+            background: linear-gradient(
+                135deg,
+                #7c3aed,
+                #2563eb
+            );
             box-shadow:
-                0 18px 38px
-                rgba(37, 99, 235, 0.4);
+                0 14px 30px
+                rgba(37, 99, 235, 0.28);
         }
 
         .back-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 9px;
-            margin-top: 27px;
-            padding: 14px 21px;
             border:
                 1px solid
                 rgba(148, 163, 184, 0.2);
-            border-radius: 13px;
             background:
                 rgba(51, 65, 85, 0.65);
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 900;
+        }
+
+        .analyze-button:hover,
+        .back-button:hover {
+            transform: translateY(-2px);
         }
 
         .hero-side {
@@ -436,12 +424,11 @@
         .date-heading-line {
             flex: 1;
             height: 1px;
-            background:
-                linear-gradient(
-                    90deg,
-                    rgba(148, 163, 184, 0.22),
-                    transparent
-                );
+            background: linear-gradient(
+                90deg,
+                rgba(148, 163, 184, 0.22),
+                transparent
+            );
         }
 
         .email-grid {
@@ -633,11 +620,11 @@
 
         .reply-button,
         .copy-button,
+        .archive-button,
         .hide-button,
         .restore-button {
             border-radius: 12px;
             cursor: pointer;
-            color: white;
             font-weight: 900;
             transition:
                 transform 0.2s ease,
@@ -647,12 +634,12 @@
         .reply-button {
             width: 100%;
             padding: 14px 18px;
-            background:
-                linear-gradient(
-                    135deg,
-                    #7c3aed,
-                    #2563eb
-                );
+            background: linear-gradient(
+                135deg,
+                #7c3aed,
+                #2563eb
+            );
+            color: white;
             font-size: 14px;
         }
 
@@ -661,16 +648,49 @@
             padding: 11px 15px;
             background:
                 rgba(71, 85, 105, 0.92);
+            color: white;
+        }
+
+        .archive-button {
+            padding: 12px 16px;
+            border:
+                1px solid
+                rgba(59, 130, 246, 0.28);
+            background:
+                rgba(59, 130, 246, 0.16);
+            color: #93c5fd;
+        }
+
+        .hide-button {
+            padding: 12px 16px;
+            border:
+                1px solid
+                rgba(34, 197, 94, 0.24);
+            background:
+                rgba(34, 197, 94, 0.15);
+            color: #86efac;
+        }
+
+        .restore-button {
+            padding: 12px 16px;
+            border:
+                1px solid
+                rgba(59, 130, 246, 0.26);
+            background:
+                rgba(59, 130, 246, 0.16);
+            color: #93c5fd;
         }
 
         .reply-button:hover,
         .copy-button:hover,
+        .archive-button:hover,
         .hide-button:hover,
         .restore-button:hover {
             transform: translateY(-1px);
         }
 
         .reply-button:disabled,
+        .archive-button:disabled,
         .hide-button:disabled,
         .restore-button:disabled {
             cursor: wait;
@@ -697,6 +717,7 @@
 
         .email-actions {
             display: flex;
+            align-items: center;
             flex-wrap: wrap;
             gap: 10px;
             grid-column: 1 / -1;
@@ -705,26 +726,6 @@
             border-top:
                 1px solid
                 rgba(148, 163, 184, 0.1);
-        }
-
-        .hide-button {
-            padding: 12px 16px;
-            background:
-                rgba(34, 197, 94, 0.15);
-            color: #86efac;
-            border:
-                1px solid
-                rgba(34, 197, 94, 0.24);
-        }
-
-        .restore-button {
-            padding: 12px 16px;
-            background:
-                rgba(59, 130, 246, 0.16);
-            color: #93c5fd;
-            border:
-                1px solid
-                rgba(59, 130, 246, 0.26);
         }
 
         .safe-note {
@@ -757,8 +758,8 @@
         }
 
         .empty-state p {
-            margin: 0 auto;
             max-width: 620px;
+            margin: 0 auto;
             color: #94a3b8;
             line-height: 1.6;
         }
@@ -814,9 +815,11 @@
             }
 
             .email-actions {
+                align-items: stretch;
                 flex-direction: column;
             }
 
+            .archive-button,
             .hide-button,
             .restore-button {
                 width: 100%;
@@ -841,14 +844,16 @@
             <div class="topbar-actions">
                 <a
                     href="/"
-                    class="nav-button {% if not show_hidden %}active{% endif %}"
+                    class="nav-button
+                    {% if not show_hidden %}active{% endif %}"
                 >
                     📬 Gelen Kutusu
                 </a>
 
                 <a
                     href="/hidden"
-                    class="nav-button {% if show_hidden %}active{% endif %}"
+                    class="nav-button
+                    {% if show_hidden %}active{% endif %}"
                 >
                     🗂️ Gizlenenler
 
@@ -866,6 +871,7 @@
 
         <section class="hero">
             <div class="hero-main glass-card">
+
                 {% if show_hidden %}
                     <div class="eyebrow">
                         🗂️ Panelden gizlenen e-postalar
@@ -877,9 +883,9 @@
                     </h2>
 
                     <p>
-                        Bu bölümde yalnızca AI Email Analyzer
-                        panelinden gizlediğin mesajlar bulunur.
-                        Gmail hesabındaki asıl e-postalar silinmedi.
+                        Bu bölümde panelden gizlenen mesajlar
+                        bulunur. Panelden gizleme, Gmail
+                        hesabındaki asıl mesajı silmez.
                     </p>
 
                     <a href="/" class="back-button">
@@ -892,15 +898,16 @@
                     </div>
 
                     <h2>
-                        Yalnızca <span>yeni e-postalarını</span>
+                        Yalnızca
+                        <span>yeni e-postalarını</span>
                         analiz et.
                     </h2>
 
                     <p>
-                        Daha önce analiz edilmiş mesajlara yeniden
-                        kota harcamadan gelen kutunu tara. İşlemi
-                        biten mesajları panelden gizleyerek yalnızca
-                        ilgilenmen gereken e-postalara odaklan.
+                        Yeni mesajlarını analiz et, AI cevap
+                        taslağı oluştur, işlemi tamamlananları
+                        panelden gizle veya e-postaları Gmail’de
+                        güvenli biçimde arşivle.
                     </p>
 
                     <a href="/analyze" class="analyze-button">
@@ -962,7 +969,7 @@
                     </div>
 
                     <div class="mini-stat-detail">
-                        Tamamlanmış kayıt
+                        Tamamlanan kayıt
                     </div>
                 </div>
             </div>
@@ -977,7 +984,7 @@
 
                     {% if remaining_count %}
                         <div>
-                            {{ remaining_count }} yeni e-posta daha
+                            {{ remaining_count }} yeni e-posta
                             sonraki taramada analiz edilecek.
                         </div>
                     {% endif %}
@@ -990,8 +997,8 @@
                 <div class="notice-icon">⏳</div>
 
                 <div>
-                    Tarama başına en fazla 10 yeni e-posta
-                    analiz ediliyor.
+                    Tarama başına en fazla 10 yeni
+                    e-posta analiz ediliyor.
                 </div>
             </div>
         {% endif %}
@@ -999,7 +1006,6 @@
         {% if error %}
             <div class="notice notice-error">
                 <div class="notice-icon">⚠️</div>
-
                 <div>{{ error }}</div>
             </div>
         {% endif %}
@@ -1011,15 +1017,15 @@
                         <h3>Gizlenen e-postalar</h3>
 
                         <p>
-                            İstediğin e-postayı tek tıkla yeniden
-                            ana dashboard'a getirebilirsin.
+                            İstediğin mesajı yeniden ana
+                            dashboard’a getirebilirsin.
                         </p>
                     {% else %}
                         <h3>E-posta geçmişi</h3>
 
                         <p>
-                            İşlemi biten mesajları panelden gizleyerek
-                            ekranını temiz tut.
+                            Aktif mesajlarını yönet, cevap oluştur
+                            veya Gmail’de arşivle.
                         </p>
                     {% endif %}
                 </div>
@@ -1042,7 +1048,8 @@
                             <h4>{{ group.title }}</h4>
 
                             <span class="date-heading-count">
-                                {{ group.emails|length }} e-posta
+                                {{ group.emails|length }}
+                                e-posta
                             </span>
 
                             <div class="date-heading-line"></div>
@@ -1076,21 +1083,32 @@
                                             </h5>
 
                                             <div class="email-meta">
-                                                <strong>Gönderen:</strong>
+                                                <strong>
+                                                    Gönderen:
+                                                </strong>
                                                 {{ result.sender }}
                                                 <br>
 
-                                                <strong>E-posta tarihi:</strong>
+                                                <strong>
+                                                    E-posta tarihi:
+                                                </strong>
                                                 {{ result.date }}
                                                 <br>
 
-                                                <strong>Analiz tarihi:</strong>
+                                                <strong>
+                                                    Analiz tarihi:
+                                                </strong>
                                                 {{ result.analyzed_at }}
 
-                                                {% if show_hidden and result.hidden_at %}
+                                                {% if
+                                                    show_hidden
+                                                    and result.hidden_at
+                                                %}
                                                     <br>
 
-                                                    <strong>Gizlenme tarihi:</strong>
+                                                    <strong>
+                                                        Gizlenme tarihi:
+                                                    </strong>
                                                     {{ result.hidden_at }}
                                                 {% endif %}
                                             </div>
@@ -1102,7 +1120,9 @@
                                             </div>
 
                                             <div class="score-value">
-                                                {{ result.importance_score }}/10
+                                                {{
+                                                    result.importance_score
+                                                }}/10
                                             </div>
                                         </div>
                                     </div>
@@ -1113,17 +1133,23 @@
                                         </span>
 
                                         {% if result.urgency == "Yüksek" %}
-                                            <span class="badge badge-high">
+                                            <span
+                                                class="badge badge-high"
+                                            >
                                                 🔴 Yüksek aciliyet
                                             </span>
 
                                         {% elif result.urgency == "Orta" %}
-                                            <span class="badge badge-medium">
+                                            <span
+                                                class="badge badge-medium"
+                                            >
                                                 🟡 Orta aciliyet
                                             </span>
 
                                         {% else %}
-                                            <span class="badge badge-low">
+                                            <span
+                                                class="badge badge-low"
+                                            >
                                                 🟢 Düşük aciliyet
                                             </span>
                                         {% endif %}
@@ -1139,14 +1165,21 @@
                                         </span>
 
                                         {% if show_hidden %}
-                                            <span class="badge badge-hidden">
+                                            <span
+                                                class="badge badge-hidden"
+                                            >
                                                 🗂️ Panelden gizlendi
                                             </span>
                                         {% endif %}
                                     </div>
 
                                     <div class="analysis-grid">
-                                        <div class="analysis-box full-width">
+                                        <div
+                                            class="
+                                                analysis-box
+                                                full-width
+                                            "
+                                        >
                                             <div class="analysis-label">
                                                 AI Özeti
                                             </div>
@@ -1162,7 +1195,9 @@
                                             </div>
 
                                             <div class="analysis-text">
-                                                {{ result.recommended_action }}
+                                                {{
+                                                    result.recommended_action
+                                                }}
                                             </div>
                                         </div>
 
@@ -1186,11 +1221,21 @@
                                             <button
                                                 type="button"
                                                 class="reply-button"
-                                                data-gmail-id="{{ result.gmail_id|e }}"
-                                                data-sender="{{ result.sender|e }}"
-                                                data-subject="{{ result.subject|e }}"
-                                                data-snippet="{{ result.snippet|e }}"
-                                                data-summary="{{ result.summary|e }}"
+                                                data-gmail-id="{{
+                                                    result.gmail_id|e
+                                                }}"
+                                                data-sender="{{
+                                                    result.sender|e
+                                                }}"
+                                                data-subject="{{
+                                                    result.subject|e
+                                                }}"
+                                                data-snippet="{{
+                                                    result.snippet|e
+                                                }}"
+                                                data-summary="{{
+                                                    result.summary|e
+                                                }}"
                                                 onclick="generateReply(this)"
                                             >
                                                 {% if result.reply_draft %}
@@ -1229,29 +1274,47 @@
                                                 <button
                                                     type="button"
                                                     class="restore-button"
-                                                    data-gmail-id="{{ result.gmail_id|e }}"
+                                                    data-gmail-id="{{
+                                                        result.gmail_id|e
+                                                    }}"
                                                     onclick="restoreEmail(this)"
                                                 >
                                                     ↩️ Ana Panele Geri Getir
                                                 </button>
 
                                                 <div class="safe-note">
-                                                    Gmail hesabındaki e-posta
-                                                    hâlâ yerinde duruyor.
+                                                    Gmail’deki e-posta
+                                                    silinmedi.
                                                 </div>
 
                                             {% else %}
                                                 <button
                                                     type="button"
+                                                    class="archive-button"
+                                                    data-gmail-id="{{
+                                                        result.gmail_id|e
+                                                    }}"
+                                                    onclick="archiveEmail(this)"
+                                                >
+                                                    📥 Gmail’de Arşivle
+                                                </button>
+
+                                                <button
+                                                    type="button"
                                                     class="hide-button"
-                                                    data-gmail-id="{{ result.gmail_id|e }}"
+                                                    data-gmail-id="{{
+                                                        result.gmail_id|e
+                                                    }}"
                                                     onclick="hideEmail(this)"
                                                 >
-                                                    ✅ İşlem Tamamlandı — Panelden Gizle
+                                                    ✅ İşlem Tamamlandı —
+                                                    Panelden Gizle
                                                 </button>
 
                                                 <div class="safe-note">
-                                                    🔒 Gmail'deki asıl e-posta silinmez.
+                                                    🔒 Arşivleme mesajı
+                                                    silmez; Tüm Postalar’da
+                                                    kalır.
                                                 </div>
                                             {% endif %}
                                         </div>
@@ -1272,8 +1335,9 @@
                         <h4>Gizlenmiş e-posta yok</h4>
 
                         <p>
-                            Ana panelde “İşlem Tamamlandı” butonuna
-                            bastığın e-postalar burada görünecek.
+                            Panelden gizlediğin veya Gmail’de
+                            arşivlediğin mesajlar burada
+                            görünecek.
                         </p>
 
                     {% else %}
@@ -1282,19 +1346,29 @@
                         <h4>Aktif e-posta bulunmuyor</h4>
 
                         <p>
-                            Yeni mesajları analiz etmek için
+                            Yeni mesajları kontrol etmek için
                             “Yeni E-postaları Tara” butonuna bas.
-                            Gizlenen mesajlarını üst menüden
-                            görüntüleyebilirsin.
                         </p>
                     {% endif %}
                 </div>
             {% endif %}
         </section>
-
     </main>
 
     <script>
+        async function readJsonResponse(response) {
+            const responseText = await response.text();
+
+            try {
+                return JSON.parse(responseText);
+            } catch (error) {
+                throw new Error(
+                    "Sunucu geçerli bir cevap döndürmedi."
+                );
+            }
+        }
+
+
         async function generateReply(button) {
             const replySection = button.closest(
                 ".reply-section"
@@ -1341,17 +1415,9 @@
                     }
                 );
 
-                const responseText = await response.text();
-
-                let data;
-
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    throw new Error(
-                        "Sunucu geçerli bir cevap döndürmedi."
-                    );
-                }
+                const data = await readJsonResponse(
+                    response
+                );
 
                 if (!response.ok || !data.success) {
                     throw new Error(
@@ -1416,11 +1482,13 @@
         }
 
 
-        async function hideEmail(button) {
+        async function archiveEmail(button) {
             const confirmed = window.confirm(
-                "Bu e-posta yalnızca AI Email Analyzer " +
-                "panelinden gizlenecek.\n\n" +
-                "Gmail hesabındaki asıl e-posta silinmeyecek.\n\n" +
+                "Bu e-posta Gmail’de arşivlenecek.\n\n" +
+                "Gelen Kutusu’ndan kaldırılacak fakat " +
+                "Tüm Postalar bölümünde kalacak.\n\n" +
+                "Ayrıca AI Email Analyzer panelinden " +
+                "gizlenecek.\n\n" +
                 "Devam edilsin mi?"
             );
 
@@ -1432,7 +1500,80 @@
                 ".email-card"
             );
 
-            const originalText = button.textContent.trim();
+            const originalText =
+                button.textContent.trim();
+
+            button.disabled = true;
+
+            button.textContent =
+                "⏳ Gmail’de arşivleniyor...";
+
+            try {
+                const response = await fetch(
+                    "/archive-email",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            gmail_id:
+                                button.dataset.gmailId
+                        })
+                    }
+                );
+
+                const data = await readJsonResponse(
+                    response
+                );
+
+                if (!response.ok || !data.success) {
+                    throw new Error(
+                        data.error ||
+                        "E-posta arşivlenemedi."
+                    );
+                }
+
+                emailCard.classList.add(
+                    "removing"
+                );
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 250);
+
+            } catch (error) {
+                window.alert(
+                    `Hata: ${error.message}`
+                );
+
+                button.disabled = false;
+
+                button.textContent =
+                    originalText;
+            }
+        }
+
+
+        async function hideEmail(button) {
+            const confirmed = window.confirm(
+                "Bu e-posta yalnızca AI Email Analyzer " +
+                "panelinden gizlenecek.\n\n" +
+                "Gmail hesabındaki asıl e-posta " +
+                "değiştirilmeyecek.\n\n" +
+                "Devam edilsin mi?"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const emailCard = button.closest(
+                ".email-card"
+            );
+
+            const originalText =
+                button.textContent.trim();
 
             button.disabled = true;
             button.textContent = "⏳ Gizleniyor...";
@@ -1452,7 +1593,9 @@
                     }
                 );
 
-                const data = await response.json();
+                const data = await readJsonResponse(
+                    response
+                );
 
                 if (!response.ok || !data.success) {
                     throw new Error(
@@ -1475,7 +1618,9 @@
                 );
 
                 button.disabled = false;
-                button.textContent = originalText;
+
+                button.textContent =
+                    originalText;
             }
         }
 
@@ -1485,10 +1630,13 @@
                 ".email-card"
             );
 
-            const originalText = button.textContent.trim();
+            const originalText =
+                button.textContent.trim();
 
             button.disabled = true;
-            button.textContent = "⏳ Geri getiriliyor...";
+
+            button.textContent =
+                "⏳ Geri getiriliyor...";
 
             try {
                 const response = await fetch(
@@ -1505,7 +1653,9 @@
                     }
                 );
 
-                const data = await response.json();
+                const data = await readJsonResponse(
+                    response
+                );
 
                 if (!response.ok || !data.success) {
                     throw new Error(
@@ -1528,7 +1678,9 @@
                 );
 
                 button.disabled = false;
-                button.textContent = originalText;
+
+                button.textContent =
+                    originalText;
             }
         }
     </script>

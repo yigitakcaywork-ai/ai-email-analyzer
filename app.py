@@ -13,8 +13,14 @@ from database import (
     save_analyzed_email,
     save_reply_draft,
 )
-from services.gmail_service import get_recent_emails
-from services.gemini_service import analyze_emails, generate_reply
+from services.gmail_service import (
+    archive_email as archive_gmail_email,
+    get_recent_emails,
+)
+from services.gemini_service import (
+    analyze_emails,
+    generate_reply,
+)
 
 
 app = Flask(__name__)
@@ -27,12 +33,13 @@ GMAIL_SCAN_LIMIT = 50
 LOCAL_TIMEZONE = ZoneInfo("Europe/Istanbul")
 
 
-def group_emails_by_date(emails: list[dict]) -> list[dict]:
-    """
-    E-postaları Bugün, Dün ve tarih başlıkları
-    altında gruplandırır.
-    """
-    today = datetime.now(LOCAL_TIMEZONE).date()
+def group_emails_by_date(
+    emails: list[dict],
+) -> list[dict]:
+    today = datetime.now(
+        LOCAL_TIMEZONE
+    ).date()
+
     yesterday = today - timedelta(days=1)
 
     grouped_emails = {}
@@ -74,9 +81,9 @@ def group_emails_by_date(emails: list[dict]) -> list[dict]:
                 "emails": [],
             }
 
-        grouped_emails[group_key]["emails"].append(
-            email
-        )
+        grouped_emails[group_key][
+            "emails"
+        ].append(email)
 
     return list(grouped_emails.values())
 
@@ -84,12 +91,6 @@ def group_emails_by_date(emails: list[dict]) -> list[dict]:
 def create_dashboard_data(
     show_hidden: bool = False,
 ) -> dict:
-    """
-    Görünen ve gizlenen kayıtları ayırır.
-
-    show_hidden True ise yalnızca gizlenen
-    e-postalar ekranda gösterilir.
-    """
     all_emails = get_saved_emails(
         limit=400,
         include_hidden=True,
@@ -98,13 +99,19 @@ def create_dashboard_data(
     visible_emails = [
         email
         for email in all_emails
-        if not email.get("is_hidden", False)
+        if not email.get(
+            "is_hidden",
+            False,
+        )
     ]
 
     hidden_emails = [
         email
         for email in all_emails
-        if email.get("is_hidden", False)
+        if email.get(
+            "is_hidden",
+            False,
+        )
     ]
 
     selected_emails = (
@@ -135,7 +142,9 @@ def create_dashboard_data(
         visible_emails
     ):
         if group["title"] == "Bugün":
-            today_count = len(group["emails"])
+            today_count = len(
+                group["emails"]
+            )
             break
 
     return {
@@ -144,7 +153,9 @@ def create_dashboard_data(
         "total_count": len(visible_emails),
         "today_count": today_count,
         "urgent_count": urgent_count,
-        "reply_needed_count": reply_needed_count,
+        "reply_needed_count": (
+            reply_needed_count
+        ),
         "hidden_count": len(hidden_emails),
         "show_hidden": show_hidden,
     }
@@ -154,10 +165,6 @@ def render_dashboard(
     show_hidden: bool = False,
     **extra_data,
 ):
-    """
-    Dashboard verilerini hazırlar ve
-    index.html şablonunu döndürür.
-    """
     dashboard_data = create_dashboard_data(
         show_hidden=show_hidden
     )
@@ -172,10 +179,6 @@ def render_dashboard(
 
 @app.route("/")
 def home():
-    """
-    Normal e-posta geçmişini gösterir.
-    Gemini isteği kullanılmaz.
-    """
     return render_dashboard(
         show_hidden=False
     )
@@ -183,9 +186,6 @@ def home():
 
 @app.route("/hidden")
 def hidden_emails_page():
-    """
-    Panelden gizlenmiş e-postaları gösterir.
-    """
     return render_dashboard(
         show_hidden=True
     )
@@ -193,12 +193,6 @@ def hidden_emails_page():
 
 @app.route("/analyze")
 def analyze():
-    """
-    Gmail'deki son mesajları kontrol eder.
-
-    Veritabanında olmayan en fazla 10 yeni
-    e-posta tek Gemini isteğinde analiz edilir.
-    """
     try:
         gmail_emails = get_recent_emails(
             max_results=GMAIL_SCAN_LIMIT,
@@ -213,7 +207,6 @@ def analyze():
             )
         ]
 
-        # En eski görülmemiş e-postadan başlanır.
         new_emails.sort(
             key=lambda email: email.get(
                 "internal_date",
@@ -277,10 +270,6 @@ def analyze():
     methods=["POST"],
 )
 def create_reply():
-    """
-    Seçilen e-posta için AI cevap taslağı
-    oluşturur ve veritabanına kaydeder.
-    """
     data = request.get_json(
         silent=True
     ) or {}
@@ -310,8 +299,8 @@ def create_reply():
             {
                 "success": False,
                 "error": (
-                    "Cevap oluşturmak için yeterli "
-                    "e-posta bilgisi bulunamadı."
+                    "Cevap oluşturmak için "
+                    "yeterli e-posta bilgisi yok."
                 ),
             }
         ), 400
@@ -339,14 +328,14 @@ def create_reply():
 
     except Exception as error:
         error_message = str(error)
+        lowered_error = error_message.lower()
 
-        if "kota" in error_message.lower():
+        if "kota" in lowered_error:
             status_code = 429
 
         elif (
-            "yoğun" in error_message.lower()
-            or "kullanılamıyor"
-            in error_message.lower()
+            "yoğun" in lowered_error
+            or "kullanılamıyor" in lowered_error
         ):
             status_code = 503
 
@@ -366,10 +355,6 @@ def create_reply():
     methods=["POST"],
 )
 def hide_email_from_dashboard():
-    """
-    E-postayı Gmail'den silmeden
-    yalnızca uygulama panelinden gizler.
-    """
     data = request.get_json(
         silent=True
     ) or {}
@@ -383,8 +368,8 @@ def hide_email_from_dashboard():
             {
                 "success": False,
                 "error": (
-                    "Gizlenecek e-posta kimliği "
-                    "bulunamadı."
+                    "Gizlenecek e-posta "
+                    "kimliği bulunamadı."
                 ),
             }
         ), 400
@@ -407,10 +392,12 @@ def hide_email_from_dashboard():
             "success": True,
             "message": (
                 "E-posta panelden gizlendi. "
-                "Gmail hesabındaki asıl mesaja "
+                "Gmail hesabındaki mesaja "
                 "dokunulmadı."
             ),
-            "hidden_count": get_hidden_email_count(),
+            "hidden_count": (
+                get_hidden_email_count()
+            ),
         }
     )
 
@@ -420,10 +407,6 @@ def hide_email_from_dashboard():
     methods=["POST"],
 )
 def restore_email_to_dashboard():
-    """
-    Gizlenmiş e-postayı yeniden
-    ana dashboard'a getirir.
-    """
     data = request.get_json(
         silent=True
     ) or {}
@@ -463,9 +446,100 @@ def restore_email_to_dashboard():
                 "E-posta yeniden dashboard'a "
                 "getirildi."
             ),
-            "hidden_count": get_hidden_email_count(),
+            "hidden_count": (
+                get_hidden_email_count()
+            ),
         }
     )
+
+
+@app.route(
+    "/archive-email",
+    methods=["POST"],
+)
+def archive_email_in_gmail():
+    """
+    E-postayı Gmail'de arşivler ve
+    dashboard'dan gizler.
+    """
+    data = request.get_json(
+        silent=True
+    ) or {}
+
+    gmail_id = str(
+        data.get("gmail_id", "")
+    ).strip()
+
+    if not gmail_id:
+        return jsonify(
+            {
+                "success": False,
+                "error": (
+                    "Arşivlenecek e-posta "
+                    "kimliği bulunamadı."
+                ),
+            }
+        ), 400
+
+    try:
+        archive_gmail_email(gmail_id)
+
+        panel_hidden = hide_email(
+            gmail_id
+        )
+
+        message = (
+            "E-posta Gmail'de arşivlendi "
+            "ve panelden gizlendi."
+        )
+
+        if not panel_hidden:
+            message = (
+                "E-posta Gmail'de arşivlendi "
+                "ancak panel kaydı gizlenemedi."
+            )
+
+        return jsonify(
+            {
+                "success": True,
+                "message": message,
+                "hidden_count": (
+                    get_hidden_email_count()
+                ),
+            }
+        )
+
+    except Exception as error:
+        error_message = str(error)
+        lowered_error = error_message.lower()
+
+        if (
+            "insufficient" in lowered_error
+            or "permission" in lowered_error
+            or "scope" in lowered_error
+        ):
+            status_code = 403
+
+            clean_message = (
+                "Gmail arşivleme izni bulunamadı. "
+                "token.json dosyasını yenileyip "
+                "Google iznini tekrar onaylayın."
+            )
+
+        else:
+            status_code = 500
+
+            clean_message = (
+                "E-posta Gmail'de "
+                f"arşivlenemedi: {error_message}"
+            )
+
+        return jsonify(
+            {
+                "success": False,
+                "error": clean_message,
+            }
+        ), status_code
 
 
 if __name__ == "__main__":

@@ -275,6 +275,118 @@
             font-weight: 800;
         }
 
+        .filter-panel {
+            margin-bottom: 24px;
+            padding: 18px;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.72);
+            box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: minmax(250px, 1.8fr) repeat(3, minmax(150px, 1fr)) auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .filter-field {
+            position: relative;
+        }
+
+        .filter-search-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #64748b;
+        }
+
+        .filter-input,
+        .filter-select {
+            width: 100%;
+            min-height: 46px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 12px;
+            outline: none;
+            background: rgba(30, 41, 59, 0.78);
+            color: #e2e8f0;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .filter-input {
+            padding: 0 14px 0 42px;
+        }
+
+        .filter-select {
+            padding: 0 12px;
+            cursor: pointer;
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            border-color: rgba(96, 165, 250, 0.58);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+        }
+
+        .filter-input::placeholder {
+            color: #64748b;
+        }
+
+        .clear-filters-button {
+            min-height: 46px;
+            padding: 0 16px;
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            border-radius: 12px;
+            background: rgba(127, 29, 29, 0.18);
+            color: #fca5a5;
+            cursor: pointer;
+            font-weight: 800;
+            white-space: nowrap;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .clear-filters-button:hover {
+            transform: translateY(-1px);
+            background: rgba(127, 29, 29, 0.28);
+        }
+
+        .filter-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 13px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .filter-result-count {
+            color: #c4b5fd;
+            font-weight: 800;
+        }
+
+        .filter-empty-state {
+            margin-top: 18px;
+            padding: 35px 20px;
+            border: 1px dashed rgba(148, 163, 184, 0.25);
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.58);
+            text-align: center;
+        }
+
+        .filter-empty-state strong {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 18px;
+        }
+
+        .filter-empty-state span {
+            color: #94a3b8;
+        }
+
         .date-group { margin-bottom: 35px; }
 
         .date-heading {
@@ -560,6 +672,20 @@
             line-height: 1.6;
         }
 
+        @media (max-width: 1000px) {
+            .filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .filter-field:first-child {
+                grid-column: 1 / -1;
+            }
+
+            .clear-filters-button {
+                width: 100%;
+            }
+        }
+
         @media (max-width: 850px) {
             .hero { grid-template-columns: 1fr; }
             .analysis-grid { grid-template-columns: 1fr; }
@@ -575,6 +701,9 @@
             .email-top { flex-direction: column; }
             .score-box { width: 100%; }
             .section-header { align-items: flex-start; flex-direction: column; }
+            .filter-grid { grid-template-columns: 1fr; }
+            .filter-field:first-child { grid-column: auto; }
+            .filter-footer { align-items: flex-start; flex-direction: column; }
             .email-actions { align-items: stretch; flex-direction: column; }
 
             .archive-button,
@@ -709,11 +838,68 @@
             </div>
 
             {% if grouped_results %}
+                <div class="filter-panel" aria-label="E-posta arama ve filtreleme alanı">
+                    <div class="filter-grid">
+                        <div class="filter-field">
+                            <span class="filter-search-icon">🔎</span>
+                            <input
+                                id="emailSearch"
+                                class="filter-input"
+                                type="search"
+                                placeholder="Konu, gönderen, özet veya işlem ara..."
+                                autocomplete="off"
+                                aria-label="E-postalarda ara"
+                            >
+                        </div>
+
+                        <div class="filter-field">
+                            <select id="urgencyFilter" class="filter-select" aria-label="Aciliyet filtresi">
+                                <option value="all">Tüm aciliyetler</option>
+                                <option value="yüksek">🔴 Yüksek aciliyet</option>
+                                <option value="orta">🟡 Orta aciliyet</option>
+                                <option value="düşük">🟢 Düşük aciliyet</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-field">
+                            <select id="replyFilter" class="filter-select" aria-label="Cevap durumu filtresi">
+                                <option value="all">Tüm cevap durumları</option>
+                                <option value="required">✉️ Cevap gerekli</option>
+                                <option value="not-required">✅ Cevap gerekmiyor</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-field">
+                            <select id="categoryFilter" class="filter-select" aria-label="Kategori filtresi">
+                                <option value="all">Tüm kategoriler</option>
+                            </select>
+                        </div>
+
+                        <button
+                            id="clearFiltersButton"
+                            class="clear-filters-button"
+                            type="button"
+                        >
+                            ✕ Temizle
+                        </button>
+                    </div>
+
+                    <div class="filter-footer">
+                        <span>Filtreler tarayıcıda çalışır; Gemini kotası veya Gmail isteği kullanmaz.</span>
+                        <span id="filterResultCount" class="filter-result-count"></span>
+                    </div>
+                </div>
+
+                <div id="filterEmptyState" class="filter-empty-state" hidden>
+                    <strong>🔍 Filtrelere uygun e-posta bulunamadı</strong>
+                    <span>Arama kelimesini değiştir veya filtreleri temizle.</span>
+                </div>
+
                 {% for group in grouped_results %}
-                    <section class="date-group">
+                    <section class="date-group" data-date-group>
                         <div class="date-heading">
                             <h4>{{ group.title }}</h4>
-                            <span class="date-heading-count">{{ group.emails|length }} e-posta</span>
+                            <span class="date-heading-count" data-group-count>{{ group.emails|length }} e-posta</span>
                             <div class="date-heading-line"></div>
                         </div>
 
@@ -726,7 +912,14 @@
                                     {% set urgency_class = "medium" %}
                                 {% endif %}
 
-                                <article class="email-card {{ urgency_class }} {% if show_hidden %}hidden-email{% endif %}">
+                                <article
+                                    class="email-card {{ urgency_class }} {% if show_hidden %}hidden-email{% endif %}"
+                                    data-filter-card
+                                    data-search="{{ (result.subject ~ ' ' ~ result.sender ~ ' ' ~ result.summary ~ ' ' ~ result.recommended_action ~ ' ' ~ result.category)|e }}"
+                                    data-urgency="{{ result.urgency|e }}"
+                                    data-reply-needed="{{ 'true' if result.reply_needed else 'false' }}"
+                                    data-category="{{ result.category|e }}"
+                                >
                                     <div class="email-top">
                                         <div class="email-title">
                                             <h5>{{ result.subject }}</h5>
@@ -891,6 +1084,110 @@
     </main>
 
     <script>
+        function normalizeFilterText(value) {
+            return String(value || "")
+                .toLocaleLowerCase("tr-TR")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+        }
+
+        function initializeEmailFilters() {
+            const cards = Array.from(document.querySelectorAll("[data-filter-card]"));
+            const searchInput = document.getElementById("emailSearch");
+            const urgencyFilter = document.getElementById("urgencyFilter");
+            const replyFilter = document.getElementById("replyFilter");
+            const categoryFilter = document.getElementById("categoryFilter");
+            const clearButton = document.getElementById("clearFiltersButton");
+            const resultCount = document.getElementById("filterResultCount");
+            const emptyState = document.getElementById("filterEmptyState");
+
+            if (!cards.length || !searchInput || !urgencyFilter || !replyFilter || !categoryFilter) {
+                return;
+            }
+
+            const categories = [...new Set(
+                cards
+                    .map(card => card.dataset.category || "")
+                    .filter(Boolean)
+            )].sort((first, second) => first.localeCompare(second, "tr-TR"));
+
+            categories.forEach(category => {
+                const option = document.createElement("option");
+                option.value = normalizeFilterText(category);
+                option.textContent = `📂 ${category}`;
+                categoryFilter.appendChild(option);
+            });
+
+            function applyFilters() {
+                const searchValue = normalizeFilterText(searchInput.value);
+                const urgencyValue = urgencyFilter.value;
+                const replyValue = replyFilter.value;
+                const categoryValue = categoryFilter.value;
+                let visibleCount = 0;
+
+                cards.forEach(card => {
+                    const searchableText = normalizeFilterText(card.dataset.search);
+                    const urgency = normalizeFilterText(card.dataset.urgency);
+                    const category = normalizeFilterText(card.dataset.category);
+                    const replyNeeded = card.dataset.replyNeeded === "true";
+
+                    const matchesSearch = !searchValue || searchableText.includes(searchValue);
+                    const matchesUrgency = urgencyValue === "all" || urgency === normalizeFilterText(urgencyValue);
+                    const matchesCategory = categoryValue === "all" || category === categoryValue;
+                    const matchesReply =
+                        replyValue === "all" ||
+                        (replyValue === "required" && replyNeeded) ||
+                        (replyValue === "not-required" && !replyNeeded);
+
+                    const shouldShow = matchesSearch && matchesUrgency && matchesCategory && matchesReply;
+                    card.hidden = !shouldShow;
+
+                    if (shouldShow) {
+                        visibleCount += 1;
+                    }
+                });
+
+                document.querySelectorAll("[data-date-group]").forEach(group => {
+                    const groupCards = Array.from(group.querySelectorAll("[data-filter-card]"));
+                    const groupVisibleCount = groupCards.filter(card => !card.hidden).length;
+                    const groupCount = group.querySelector("[data-group-count]");
+
+                    group.hidden = groupVisibleCount === 0;
+
+                    if (groupCount) {
+                        groupCount.textContent = `${groupVisibleCount} e-posta`;
+                    }
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = `${visibleCount} / ${cards.length} kayıt gösteriliyor`;
+                }
+
+                if (emptyState) {
+                    emptyState.hidden = visibleCount !== 0;
+                }
+            }
+
+            [searchInput, urgencyFilter, replyFilter, categoryFilter].forEach(control => {
+                control.addEventListener("input", applyFilters);
+                control.addEventListener("change", applyFilters);
+            });
+
+            clearButton?.addEventListener("click", () => {
+                searchInput.value = "";
+                urgencyFilter.value = "all";
+                replyFilter.value = "all";
+                categoryFilter.value = "all";
+                searchInput.focus();
+                applyFilters();
+            });
+
+            applyFilters();
+        }
+
+        document.addEventListener("DOMContentLoaded", initializeEmailFilters);
+
         async function readJsonResponse(response) {
             const responseText = await response.text();
 

@@ -6,8 +6,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 
-# Gmail mesajlarını okumak ve etiketlerini değiştirmek için.
-# Arşivleme işlemi INBOX etiketini kaldırarak yapılır.
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
 ]
@@ -23,31 +21,17 @@ def get_gmail_service():
         )
 
     if not creds or not creds.valid:
-        if (
-            creds
-            and creds.expired
-            and creds.refresh_token
-        ):
+        if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 "credentials.json",
                 SCOPES,
             )
+            creds = flow.run_local_server(port=0)
 
-            creds = flow.run_local_server(
-                port=0,
-            )
-
-        with open(
-            "token.json",
-            "w",
-            encoding="utf-8",
-        ) as token_file:
-            token_file.write(
-                creds.to_json()
-            )
+        with open("token.json", "w", encoding="utf-8") as token_file:
+            token_file.write(creds.to_json())
 
     return build(
         "gmail",
@@ -69,9 +53,7 @@ def get_recent_emails(
     }
 
     if after_unix_seconds is not None:
-        list_parameters["q"] = (
-            f"after:{int(after_unix_seconds)}"
-        )
+        list_parameters["q"] = f"after:{int(after_unix_seconds)}"
 
     result = (
         service.users()
@@ -80,11 +62,7 @@ def get_recent_emails(
         .execute()
     )
 
-    messages = result.get(
-        "messages",
-        [],
-    )
-
+    messages = result.get("messages", [])
     emails = []
 
     for message in messages:
@@ -117,57 +95,30 @@ def get_recent_emails(
 
         emails.append(
             {
-                "gmail_id": email_data.get(
-                    "id",
-                    message["id"],
-                ),
-                "thread_id": email_data.get(
-                    "threadId",
-                    "",
-                ),
+                "gmail_id": email_data.get("id", message["id"]),
+                "thread_id": email_data.get("threadId", ""),
                 "internal_date": int(
-                    email_data.get(
-                        "internalDate",
-                        0,
-                    )
+                    email_data.get("internalDate", 0)
                 ),
-                "from": header_map.get(
-                    "From",
-                    "Bilinmiyor",
-                ),
-                "subject": header_map.get(
-                    "Subject",
-                    "Konu yok",
-                ),
-                "date": header_map.get(
-                    "Date",
-                    "Tarih yok",
-                ),
-                "snippet": email_data.get(
-                    "snippet",
-                    "",
-                ),
+                "from": header_map.get("From", "Bilinmiyor"),
+                "subject": header_map.get("Subject", "Konu yok"),
+                "date": header_map.get("Date", "Tarih yok"),
+                "snippet": email_data.get("snippet", ""),
             }
         )
 
     emails.sort(
-        key=lambda email: email[
-            "internal_date"
-        ],
+        key=lambda email: email["internal_date"],
         reverse=True,
     )
 
     return emails
 
 
-def archive_email(
-    gmail_id: str,
-) -> bool:
+def archive_email(gmail_id: str) -> bool:
     """
-    Mesajı Gmail'de arşivler.
-
-    Gmail'deki INBOX etiketi kaldırılır.
-    Mesaj silinmez ve Tüm Postalar'da kalır.
+    Gmail mesajından INBOX etiketini kaldırır.
+    Mesaj silinmez ve Tüm Postalar bölümünde kalır.
     """
     if not gmail_id:
         raise ValueError(
@@ -180,9 +131,30 @@ def archive_email(
         userId="me",
         id=gmail_id,
         body={
-            "removeLabelIds": [
-                "INBOX",
-            ],
+            "removeLabelIds": ["INBOX"],
+        },
+    ).execute()
+
+    return True
+
+
+def move_email_to_inbox(gmail_id: str) -> bool:
+    """
+    Gmail mesajına INBOX etiketini yeniden ekler.
+    Arşivlenmiş mesajı Gelen Kutusu'na geri taşır.
+    """
+    if not gmail_id:
+        raise ValueError(
+            "Gelen Kutusu'na taşınacak Gmail mesaj kimliği bulunamadı."
+        )
+
+    service = get_gmail_service()
+
+    service.users().messages().modify(
+        userId="me",
+        id=gmail_id,
+        body={
+            "addLabelIds": ["INBOX"],
         },
     ).execute()
 

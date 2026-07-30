@@ -121,12 +121,19 @@ async function generateReply(button) {
     const replySection = button.closest(".reply-section");
     const replyResult = replySection.querySelector(".reply-result");
     const replyText = replySection.querySelector(".reply-text");
+    const toneSelect = replySection.querySelector(".reply-tone-select");
+    const selectedTone = toneSelect?.value || "professional";
+    const selectedToneLabel = toneSelect?.selectedOptions[0]?.textContent?.trim()
+        || "Profesyonel";
     const originalText = button.textContent.trim();
 
     button.disabled = true;
+    if (toneSelect) {
+        toneSelect.disabled = true;
+    }
     button.textContent = "⏳ Cevap hazırlanıyor...";
     replyResult.hidden = false;
-    replyText.textContent = "Gemini cevap taslağını hazırlıyor...";
+    replyText.textContent = `${selectedToneLabel} tonunda cevap hazırlanıyor...`;
 
     try {
         const response = await fetch("/generate-reply", {
@@ -137,7 +144,8 @@ async function generateReply(button) {
                 sender: button.dataset.sender,
                 subject: button.dataset.subject,
                 snippet: button.dataset.snippet,
-                summary: button.dataset.summary
+                summary: button.dataset.summary,
+                tone: selectedTone
             })
         });
 
@@ -148,12 +156,15 @@ async function generateReply(button) {
         }
 
         replyText.textContent = data.reply;
-        button.textContent = "🔄 Cevabı Yeniden Oluştur";
+        button.textContent = "🔄 Seçilen Tonda Yeniden Oluştur";
     } catch (error) {
         replyText.textContent = `Hata: ${error.message}`;
         button.textContent = originalText;
     } finally {
         button.disabled = false;
+        if (toneSelect) {
+            toneSelect.disabled = false;
+        }
     }
 }
 

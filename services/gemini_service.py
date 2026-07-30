@@ -11,256 +11,321 @@ from google.genai import types
 
 load_dotenv()
 
+
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
-    raise ValueError(
-        "GEMINI_API_KEY .env dosyasında bulunamadı."
+    raise RuntimeError(
+        "GEMINI_API_KEY bulunamadı. "
+        ".env dosyanızı kontrol edin."
     )
 
 
-client = genai.Client(api_key=API_KEY)
+client = genai.Client(
+    api_key=API_KEY
+)
+
 
 MODEL_NAME = "gemini-3-flash-preview"
 
-ALLOWED_CATEGORIES = {
-    "İş",
-    "Kişisel",
-    "Reklam",
-    "Sosyal Medya",
-    "Güvenlik",
-    "Fatura",
-    "Diğer",
-}
 
-ALLOWED_URGENCIES = {
+ALLOWED_CATEGORIES = [
+    "İş",
+    "Müşteri",
+    "Finans",
+    "Fatura",
+    "Toplantı",
+    "Destek",
+    "Kişisel",
+    "Sosyal",
+    "Reklam",
+    "Bildirim",
+    "Güvenlik",
+    "Diğer",
+]
+
+
+ALLOWED_URGENCY_LEVELS = [
     "Düşük",
     "Orta",
     "Yüksek",
+]
+
+
+REPLY_TONE_INSTRUCTIONS = {
+    "professional": (
+        "Profesyonel, güven veren, doğal ve açık bir dil kullan. "
+        "Gereksiz resmiyetten kaçın."
+    ),
+    "formal": (
+        "Resmî, ciddi ve saygılı bir dil kullan. "
+        "Hitap ve kapanış ifadelerini resmî biçimde yaz."
+    ),
+    "friendly": (
+        "Samimi, sıcak ve doğal bir dil kullan. "
+        "Ancak profesyonellik sınırlarını koru."
+    ),
+    "short": (
+        "Kısa ve net yaz. En fazla 3 kısa cümle kullan. "
+        "Gereksiz açıklama ekleme."
+    ),
 }
 
 
-def is_daily_quota_error(error: Exception) -> bool:
+def is_daily_quota_error(
+    error_message: str,
+) -> bool:
     """
-    Günlük ücretsiz istek kotasının dolup dolmadığını kontrol eder.
-    Günlük kota dolduysa tekrar denemek fayda sağlamaz.
+    Günlük kota hatasını tespit eder.
     """
-    error_text = str(error).lower()
+    lowered_message = error_message.lower()
 
-    daily_quota_phrases = (
-        "perday",
-        "per_day",
-        "requestsperday",
-        "generate requests per day",
+    quota_keywords = [
+        "quota exceeded",
         "daily quota",
-    )
-
-    return (
-        "429" in error_text
-        and any(
-            phrase in error_text
-            for phrase in daily_quota_phrases
-        )
-    )
-
-
-def is_temporary_error(error: Exception) -> bool:
-    """
-    Bir süre bekledikten sonra düzelebilecek hataları belirler.
-    """
-    error_text = str(error).lower()
-
-    temporary_phrases = (
-        "503",
-        "unavailable",
-        "high demand",
-        "temporarily unavailable",
-        "service unavailable",
-        "429",
+        "per day",
         "resource_exhausted",
-        "rate limit",
-        "retrydelay",
-        "retry delay",
-    )
+        "limit: 0",
+        "requests per day",
+    ]
 
     return any(
-        phrase in error_text
-        for phrase in temporary_phrases
+        keyword in lowered_message
+        for keyword in quota_keywords
+    )
+
+
+def is_temporary_error(
+    error_message: str,
+) -> bool:
+    """
+    Geçici yoğunluk ve hız sınırı
+    hatalarını tespit eder.
+    """
+    lowered_message = error_message.lower()
+
+    temporary_keywords = [
+        "429",
+        "503",
+        "resource_exhausted",
+        "unavailable",
+        "overloaded",
+        "temporarily",
+        "rate limit",
+        "too many requests",
+        "service unavailable",
+    ]
+
+    return any(
+        keyword in lowered_message
+        for keyword in temporary_keywords
     )
 
 
 def generate_content_with_retry(
-    prompt: str,
-    config: types.GenerateContentConfig | None = None,
+    contents: str,
+    config: types.GenerateContentConfig,
     max_attempts: int = 4,
 ):
     """
-    Gemini isteğini gönderir.
-
-    503 veya geçici hız sınırı hatalarında sırasıyla
-    yaklaşık 2, 5 ve 10 saniye bekleyerek yeniden dener.
+    Gemini isteğini geçici hatalarda
+    kontrollü biçimde tekrarlar.
     """
-    retry_delays = [2, 5, 10]
+    retry_delays = [
+        2,
+        5,
+        10,
+    ]
+
+    last_error = None
 
     for attempt in range(max_attempts):
         try:
             return client.models.generate_content(
                 model=MODEL_NAME,
-                contents=prompt,
+                contents=contents,
                 config=config,
             )
 
         except Exception as error:
-            if is_daily_quota_error(error):
+            last_error = error
+            error_message = str(error)
+
+            if is_daily_quota_error(
+                error_message
+            ):
                 raise RuntimeError(
-                    "Gemini günlük kullanım kotasına ulaşıldı. "
-                    "Kota yenilendikten sonra tekrar deneyin."
+                    "Gemini günlük kullanım kotası doldu. "
+                    "Kota yenilendiğinde tekrar deneyin."
                 ) from error
 
-            last_attempt = attempt == max_attempts - 1
+            is_last_attempt = (
+                attempt == max_attempts - 1
+            )
 
-            if not is_temporary_error(error):
-                raise RuntimeError(
-                    "Gemini isteği sırasında beklenmeyen "
-                    "bir hata oluştu."
-                ) from error
-
-            if last_attempt:
-                raise RuntimeError(
-                    "Gemini şu anda yoğun veya geçici olarak "
-                    "kullanılamıyor. E-postalarınız kaybolmadı; "
-                    "kısa süre sonra tekrar deneyin."
-                ) from error
+            if (
+                not is_temporary_error(
+                    error_message
+                )
+                or is_last_attempt
+            ):
+                raise
 
             delay_index = min(
                 attempt,
                 len(retry_delays) - 1,
             )
 
-            wait_time = (
+            delay = (
                 retry_delays[delay_index]
-                + random.uniform(0, 1)
+                + random.uniform(0.2, 1.0)
             )
 
-            time.sleep(wait_time)
+            time.sleep(delay)
 
     raise RuntimeError(
-        "Gemini isteği tamamlanamadı."
+        "Gemini isteği tamamlanamadı: "
+        f"{last_error}"
     )
 
 
-def clean_json_response(raw_text: str) -> Any:
+def extract_json_from_response(
+    response_text: str,
+) -> Any:
     """
-    Olası Markdown kod bloklarını kaldırıp JSON'u çözümler.
+    Gemini cevabındaki JSON metnini
+    güvenli biçimde ayrıştırır.
     """
-    cleaned_text = raw_text.strip()
-
-    if cleaned_text.startswith("```"):
-        cleaned_text = (
-            cleaned_text
-            .replace("```json", "")
-            .replace("```JSON", "")
-            .replace("```", "")
-            .strip()
-        )
+    cleaned_text = (
+        response_text
+        .strip()
+        .replace("```json", "")
+        .replace("```JSON", "")
+        .replace("```", "")
+        .strip()
+    )
 
     try:
-        return json.loads(cleaned_text)
+        return json.loads(
+            cleaned_text
+        )
 
     except json.JSONDecodeError as error:
-        raise ValueError(
-            "Gemini geçerli bir JSON yanıtı döndürmedi."
+        raise RuntimeError(
+            "Gemini geçerli JSON döndürmedi."
         ) from error
 
 
-def normalize_analysis(analysis: dict) -> dict:
+def normalize_analysis(
+    analysis: dict,
+) -> dict:
     """
-    Gemini analizindeki değerleri doğrular ve standartlaştırır.
+    Model çıktısını uygulamanın beklediği
+    güvenli biçime dönüştürür.
     """
     category = str(
-        analysis.get("category", "Diğer")
+        analysis.get(
+            "category",
+            "Diğer",
+        )
     ).strip()
 
     if category not in ALLOWED_CATEGORIES:
         category = "Diğer"
 
     urgency = str(
-        analysis.get("urgency", "Düşük")
+        analysis.get(
+            "urgency",
+            "Düşük",
+        )
     ).strip()
 
-    if urgency not in ALLOWED_URGENCIES:
+    if urgency not in ALLOWED_URGENCY_LEVELS:
         urgency = "Düşük"
 
     try:
         importance_score = int(
-            analysis.get("importance_score", 1)
+            analysis.get(
+                "importance_score",
+                1,
+            )
         )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError,
+    ):
         importance_score = 1
 
     importance_score = max(
         1,
-        min(importance_score, 10),
+        min(
+            importance_score,
+            10,
+        ),
     )
 
-    reply_needed = analysis.get(
+    reply_needed_value = analysis.get(
         "reply_needed",
         False,
     )
 
-    if not isinstance(reply_needed, bool):
+    if isinstance(
+        reply_needed_value,
+        str,
+    ):
         reply_needed = (
-            str(reply_needed).strip().lower()
-            == "true"
+            reply_needed_value
+            .strip()
+            .lower()
+            in {
+                "true",
+                "evet",
+                "yes",
+                "1",
+            }
+        )
+
+    else:
+        reply_needed = bool(
+            reply_needed_value
         )
 
     summary = str(
         analysis.get(
             "summary",
-            "Özet oluşturulamadı.",
+            "",
         )
     ).strip()
+
+    if not summary:
+        summary = (
+            "E-posta özeti oluşturulamadı."
+        )
 
     recommended_action = str(
         analysis.get(
             "recommended_action",
-            "E-postayı manuel olarak inceleyin.",
+            "",
         )
     ).strip()
 
+    if not recommended_action:
+        recommended_action = (
+            "E-postayı manuel olarak inceleyin."
+        )
+
     return {
-        "summary": (
-            summary
-            or "Özet oluşturulamadı."
-        ),
+        "summary": summary,
         "category": category,
-        "importance_score": importance_score,
+        "importance_score": (
+            importance_score
+        ),
         "urgency": urgency,
         "recommended_action": (
             recommended_action
-            or "E-postayı manuel olarak inceleyin."
         ),
         "reply_needed": reply_needed,
-    }
-
-
-def create_default_analysis() -> dict:
-    """
-    Gemini bir e-posta için sonuç döndürmezse
-    kullanılacak güvenli varsayılan analiz.
-    """
-    return {
-        "summary": (
-            "Bu e-posta için analiz oluşturulamadı."
-        ),
-        "category": "Diğer",
-        "importance_score": 1,
-        "urgency": "Düşük",
-        "recommended_action": (
-            "E-postayı manuel olarak inceleyin."
-        ),
-        "reply_needed": False,
     }
 
 
@@ -268,31 +333,32 @@ def analyze_emails(
     emails: list[dict],
 ) -> list[dict]:
     """
-    Birden fazla e-postayı tek Gemini isteğinde analiz eder.
-
-    Dönen analizlerin sırası, gönderilen e-postaların
-    sırasıyla aynı tutulur.
+    Birden fazla e-postayı tek Gemini
+    isteğinde analiz eder.
     """
     if not emails:
         return []
 
-    email_items = []
+    email_payload = []
 
-    for index, email in enumerate(emails):
-        email_items.append(
+    for index, email in enumerate(
+        emails,
+        start=1,
+    ):
+        email_payload.append(
             {
                 "email_index": index,
                 "sender": email.get(
                     "from",
-                    "",
+                    "Bilinmiyor",
                 ),
                 "subject": email.get(
                     "subject",
-                    "",
+                    "Konu yok",
                 ),
                 "date": email.get(
                     "date",
-                    "",
+                    "Tarih yok",
                 ),
                 "snippet": email.get(
                     "snippet",
@@ -302,225 +368,391 @@ def analyze_emails(
         )
 
     prompt = f"""
-Aşağıdaki e-postaları Türkçe analiz et.
+Aşağıdaki e-postaları Türkçe olarak analiz et.
 
-E-postalar:
+Her e-posta için aşağıdaki alanları üret:
+
+- email_index
+- summary
+- category
+- importance_score
+- urgency
+- recommended_action
+- reply_needed
+
+KURALLAR:
+
+1. summary:
+   E-postanın amacını 1 veya 2 kısa cümlede açıkla.
+
+2. category:
+   Yalnızca şu kategorilerden birini kullan:
+   {", ".join(ALLOWED_CATEGORIES)}
+
+3. importance_score:
+   1 ile 10 arasında tam sayı kullan.
+
+4. urgency:
+   Yalnızca Düşük, Orta veya Yüksek yaz.
+
+5. recommended_action:
+   Kullanıcının ne yapması gerektiğini
+   tek ve açık bir cümleyle belirt.
+
+6. reply_needed:
+   Yalnızca true veya false kullan.
+
+7. Reklam, otomatik bildirim, bülten ve
+   tanıtım mesajlarında genellikle
+   reply_needed false olmalıdır.
+
+8. Güvenlik uyarıları, ödeme sorunları,
+   müşteri şikâyetleri ve zaman sınırlı
+   işlemler daha yüksek önem taşıyabilir.
+
+9. Tam olarak {len(emails)} sonuç döndür.
+
+10. Sonuçları e-postaların sırasını
+    değiştirmeden döndür.
+
+Yalnızca geçerli bir JSON dizisi döndür.
+Markdown veya ek açıklama kullanma.
+
+E-POSTALAR:
+
 {json.dumps(
-    email_items,
+    email_payload,
     ensure_ascii=False,
     indent=2,
 )}
-
-Her e-posta için:
-
-- En fazla iki kısa cümlelik özet oluştur.
-- Uygun kategoriyi belirle.
-- Önem puanını 1 ile 10 arasında değerlendir.
-- Aciliyeti Düşük, Orta veya Yüksek olarak belirle.
-- Kısa ve uygulanabilir bir işlem öner.
-- Cevap gerekip gerekmediğini belirle.
-- Bilmediğin bilgi, tarih veya taahhüt uydurma.
-- email_index değerini değiştirme.
-- Sonuçları email_index sırasına göre döndür.
-"""
-
-    response_schema = {
-        "type": "object",
-        "properties": {
-            "analyses": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "email_index": {
-                            "type": "integer",
-                        },
-                        "summary": {
-                            "type": "string",
-                        },
-                        "category": {
-                            "type": "string",
-                            "enum": [
-                                "İş",
-                                "Kişisel",
-                                "Reklam",
-                                "Sosyal Medya",
-                                "Güvenlik",
-                                "Fatura",
-                                "Diğer",
-                            ],
-                        },
-                        "importance_score": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 10,
-                        },
-                        "urgency": {
-                            "type": "string",
-                            "enum": [
-                                "Düşük",
-                                "Orta",
-                                "Yüksek",
-                            ],
-                        },
-                        "recommended_action": {
-                            "type": "string",
-                        },
-                        "reply_needed": {
-                            "type": "boolean",
-                        },
-                    },
-                    "required": [
-                        "email_index",
-                        "summary",
-                        "category",
-                        "importance_score",
-                        "urgency",
-                        "recommended_action",
-                        "reply_needed",
-                    ],
-                    "additionalProperties": False,
-                },
-            }
-        },
-        "required": [
-            "analyses",
-        ],
-        "additionalProperties": False,
-    }
+""".strip()
 
     config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_json_schema=response_schema,
+        response_mime_type=(
+            "application/json"
+        ),
         temperature=0.2,
+        max_output_tokens=4096,
+        thinking_config=types.ThinkingConfig(
+            thinking_level="minimal",
+        ),
     )
 
     response = generate_content_with_retry(
-        prompt=prompt,
+        contents=prompt,
         config=config,
     )
 
-    if not response.text:
-        raise ValueError(
-            "Gemini boş analiz yanıtı döndürdü."
+    response_text = (
+        response.text or ""
+    ).strip()
+
+    if not response_text:
+        raise RuntimeError(
+            "Gemini boş analiz cevabı döndürdü."
         )
 
-    parsed_response = clean_json_response(
-        response.text
+    parsed_response = extract_json_from_response(
+        response_text
     )
 
-    if not isinstance(parsed_response, dict):
-        raise ValueError(
-            "Gemini analiz yanıtı beklenen "
-            "yapıda değil."
-        )
-
-    raw_analyses = parsed_response.get(
-        "analyses",
-        [],
-    )
-
-    if not isinstance(raw_analyses, list):
-        raise ValueError(
-            "Gemini analiz listesi oluşturamadı."
-        )
-
-    analyses_by_index = {}
-
-    for raw_analysis in raw_analyses:
-        if not isinstance(raw_analysis, dict):
-            continue
-
-        try:
-            email_index = int(
-                raw_analysis.get("email_index")
-            )
-
-        except (TypeError, ValueError):
-            continue
-
-        if not 0 <= email_index < len(emails):
-            continue
-
-        analyses_by_index[email_index] = (
-            normalize_analysis(raw_analysis)
-        )
-
-    final_analyses = []
-
-    for index in range(len(emails)):
-        final_analyses.append(
-            analyses_by_index.get(
-                index,
-                create_default_analysis(),
+    if isinstance(
+        parsed_response,
+        dict,
+    ):
+        possible_results = (
+            parsed_response.get("results")
+            or parsed_response.get("emails")
+            or parsed_response.get(
+                "analyses"
             )
         )
 
-    return final_analyses
+        if isinstance(
+            possible_results,
+            list,
+        ):
+            parsed_response = (
+                possible_results
+            )
+
+    if not isinstance(
+        parsed_response,
+        list,
+    ):
+        raise RuntimeError(
+            "Gemini analiz sonuçlarını "
+            "liste biçiminde döndürmedi."
+        )
+
+    normalized_results = []
+
+    for analysis in parsed_response:
+        if not isinstance(
+            analysis,
+            dict,
+        ):
+            continue
+
+        normalized_results.append(
+            normalize_analysis(
+                analysis
+            )
+        )
+
+    if len(normalized_results) != len(
+        emails
+    ):
+        raise RuntimeError(
+            "Gemini tüm e-postaları "
+            "eksiksiz analiz edemedi."
+        )
+
+    return normalized_results
+
+
+def get_reply_tone_instruction(
+    tone: str,
+) -> str:
+    """
+    Arayüzden gelen ton değerini
+    güvenli bir talimata dönüştürür.
+    """
+    normalized_tone = (
+        str(tone or "professional")
+        .strip()
+        .lower()
+    )
+
+    return REPLY_TONE_INSTRUCTIONS.get(
+        normalized_tone,
+        REPLY_TONE_INSTRUCTIONS[
+            "professional"
+        ],
+    )
+
+
+def get_finish_reason(
+    response,
+) -> str:
+    """
+    Gemini yanıtının bitiş nedenini
+    güvenli biçimde okur.
+    """
+    candidates = getattr(
+        response,
+        "candidates",
+        None,
+    )
+
+    if not candidates:
+        return ""
+
+    first_candidate = candidates[0]
+
+    finish_reason = getattr(
+        first_candidate,
+        "finish_reason",
+        "",
+    )
+
+    return str(
+        finish_reason or ""
+    ).upper()
+
+
+def looks_incomplete(
+    reply: str,
+) -> bool:
+    """
+    Görünürde yarım kalan cevapları
+    tespit etmek için ek kontrol.
+    """
+    cleaned_reply = reply.strip()
+
+    if not cleaned_reply:
+        return True
+
+    if len(cleaned_reply) < 15:
+        return True
+
+    unfinished_endings = (
+        ",",
+        ":",
+        ";",
+        "-",
+        "—",
+        "(",
+        "/",
+    )
+
+    if cleaned_reply.endswith(
+        unfinished_endings
+    ):
+        return True
+
+    last_line = (
+        cleaned_reply
+        .splitlines()[-1]
+        .strip()
+    )
+
+    # Son satır tek ve çok kısa bir kelimeyse
+    # cevap kesilmiş olabilir.
+    if (
+        len(last_line.split()) == 1
+        and len(last_line) <= 4
+    ):
+        return True
+
+    return False
 
 
 def generate_reply(
     sender: str,
     subject: str,
     snippet: str,
-    summary: str = "",
+    summary: str,
+    tone: str = "professional",
 ) -> str:
     """
-    Seçilen e-posta için profesyonel bir
-    Türkçe cevap taslağı oluşturur.
-    """
-    prompt = f"""
-Aşağıdaki e-postaya gönderilebilecek kısa,
-doğal ve profesyonel bir Türkçe cevap taslağı oluştur.
+    Seçilen tonda eksiksiz bir
+    e-posta cevap taslağı oluşturur.
 
-Gönderen:
+    Yanıt çıktı sınırında kesilirse daha
+    yüksek token sınırıyla tekrar denenir.
+    """
+    tone_instruction = (
+        get_reply_tone_instruction(
+            tone
+        )
+    )
+
+    prompt = f"""
+Aşağıdaki e-postaya gönderilebilecek
+eksiksiz bir Türkçe cevap taslağı hazırla.
+
+GÖNDEREN:
 {sender}
 
-Konu:
+KONU:
 {subject}
 
-E-posta içeriği:
+E-POSTA İÇERİĞİ:
 {snippet}
 
-E-posta özeti:
+AI ÖZETİ:
 {summary}
 
-Kurallar:
+SEÇİLEN CEVAP TONU:
+{tone_instruction}
 
-- Yalnızca gönderilebilir cevap metnini yaz.
-- Markdown veya açıklama ekleme.
-- Bilmediğin bilgi, tarih veya taahhüt uydurma.
-- Kullanıcının adına kesin karar verme.
-- Eksik bilgiler için [isim], [tarih] veya
-  [uygun saat] gibi köşeli parantezli alanlar kullan.
-- Profesyonel fakat doğal bir dil kullan.
-- Uygun bir selamlama ve kapanış ekle.
-- Gereksiz şekilde uzun yazma.
-- E-posta cevap gerektirmiyor gibi görünse bile,
-  kullanıcı butona bastığı için kısa ve nazik
-  bir cevap taslağı oluştur.
-"""
+KURALLAR:
 
-    config = types.GenerateContentConfig(
-        temperature=0.4,
-        max_output_tokens=600,
+- Yalnızca gönderilecek cevap metnini yaz.
+- Başlık, açıklama, analiz veya Markdown yazma.
+- E-postada olmayan bilgi, tarih, fiyat,
+  karar veya vaat uydurma.
+- Seçilen tona kesinlikle uy.
+- Uygun bir hitapla başla.
+- Cevabı doğal ve anlaşılır yaz.
+- Hiçbir kelimeyi veya cümleyi yarım bırakma.
+- Mesajı anlamlı bir kapanışla tamamla.
+- Gönderenin ismini bilmiyorsan güvenli
+  ve genel bir hitap kullan.
+- Reklam veya otomatik tanıtım mesajına
+  cevap hazırlanıyorsa gereksiz taahhütte
+  bulunma.
+- Kısa ve net ton seçildiyse en fazla
+  3 kısa cümle kullan.
+""".strip()
+
+    token_limits = [
+        1024,
+        2048,
+    ]
+
+    last_error = None
+
+    for attempt_index, max_tokens in enumerate(
+        token_limits,
+    ):
+        try:
+            config = types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=max_tokens,
+                thinking_config=(
+                    types.ThinkingConfig(
+                        thinking_level=(
+                            "minimal"
+                        ),
+                    )
+                ),
+            )
+
+            response = (
+                generate_content_with_retry(
+                    contents=prompt,
+                    config=config,
+                    max_attempts=3,
+                )
+            )
+
+            reply = (
+                response.text or ""
+            ).strip()
+
+            finish_reason = (
+                get_finish_reason(
+                    response
+                )
+            )
+
+            hit_token_limit = (
+                "MAX_TOKENS"
+                in finish_reason
+            )
+
+            incomplete_reply = (
+                looks_incomplete(
+                    reply
+                )
+            )
+
+            if (
+                reply
+                and not hit_token_limit
+                and not incomplete_reply
+            ):
+                return reply
+
+            has_another_attempt = (
+                attempt_index
+                < len(token_limits) - 1
+            )
+
+            if has_another_attempt:
+                time.sleep(1)
+                continue
+
+            raise RuntimeError(
+                "AI cevap taslağını "
+                "eksiksiz tamamlayamadı."
+            )
+
+        except Exception as error:
+            last_error = error
+
+            has_another_attempt = (
+                attempt_index
+                < len(token_limits) - 1
+            )
+
+            if has_another_attempt:
+                time.sleep(2)
+                continue
+
+    raise RuntimeError(
+        "Cevap taslağı oluşturulamadı: "
+        f"{last_error}"
     )
-
-    response = generate_content_with_retry(
-        prompt=prompt,
-        config=config,
-    )
-
-    if not response.text:
-        raise ValueError(
-            "Gemini cevap taslağı oluşturamadı."
-        )
-
-    reply_text = response.text.strip()
-
-    if not reply_text:
-        raise ValueError(
-            "Gemini boş cevap taslağı döndürdü."
-        )
-
-    return reply_text

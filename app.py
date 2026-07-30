@@ -32,6 +32,25 @@ NEW_EMAIL_LIMIT = 10
 GMAIL_SCAN_LIMIT = 50
 LOCAL_TIMEZONE = ZoneInfo("Europe/Istanbul")
 
+REPLY_TONE_INSTRUCTIONS = {
+    "professional": (
+        "Profesyonel, dengeli, güven veren ve doğal bir üslup kullan. "
+        "Gereksiz resmiyetten ve uzun anlatımdan kaçın."
+    ),
+    "formal": (
+        "Resmî, ciddi ve saygılı bir üslup kullan. Hitap ve kapanış "
+        "ifadeleri kurumsal yazışmaya uygun olsun."
+    ),
+    "friendly": (
+        "Samimi, sıcak ve doğal bir üslup kullan; ancak profesyonel "
+        "sınırları koru ve aşırı gündelik ifadeler kullanma."
+    ),
+    "short": (
+        "Çok kısa, net ve doğrudan bir cevap yaz. Cevap en fazla üç "
+        "kısa cümleden oluşsun."
+    ),
+}
+
 
 def group_emails_by_date(
     emails: list[dict],
@@ -261,6 +280,17 @@ def create_reply():
     summary = str(
         data.get("summary", "")
     ).strip()
+    tone = str(
+        data.get("tone", "professional")
+    ).strip().lower()
+
+    if tone not in REPLY_TONE_INSTRUCTIONS:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Geçersiz cevap tonu seçildi.",
+            }
+        ), 400
 
     if not subject and not snippet:
         return jsonify(
@@ -274,11 +304,18 @@ def create_reply():
         ), 400
 
     try:
+        tone_instruction = REPLY_TONE_INSTRUCTIONS[tone]
+        summary_with_tone = (
+            f"{summary}\n\n"
+            "ÖNEMLİ CEVAP TONU TALİMATI: "
+            f"{tone_instruction}"
+        ).strip()
+
         reply = generate_reply(
             sender=sender,
             subject=subject,
             snippet=snippet,
-            summary=summary,
+            summary=summary_with_tone,
         )
 
         if gmail_id:
@@ -291,6 +328,7 @@ def create_reply():
             {
                 "success": True,
                 "reply": reply,
+                "tone": tone,
             }
         )
 

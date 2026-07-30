@@ -282,22 +282,38 @@
                                         </div>
 
                                         <div class="reply-section">
-                                            <button
-                                                type="button"
-                                                class="reply-button"
-                                                data-gmail-id="{{ result.gmail_id|e }}"
-                                                data-sender="{{ result.sender|e }}"
-                                                data-subject="{{ result.subject|e }}"
-                                                data-snippet="{{ result.snippet|e }}"
-                                                data-summary="{{ result.summary|e }}"
-                                                onclick="generateReply(this)"
-                                            >
-                                                {% if result.reply_draft %}
-                                                    🔄 Cevabı Yeniden Oluştur
-                                                {% else %}
-                                                    ✨ AI ile Cevap Taslağı Oluştur
-                                                {% endif %}
-                                            </button>
+                                            <div class="reply-controls">
+                                                <label class="reply-tone-field">
+                                                    <span class="reply-tone-label">Cevap tonu</span>
+
+                                                    <select
+                                                        class="reply-tone-select"
+                                                        aria-label="AI cevap tonu"
+                                                    >
+                                                        <option value="professional">💼 Profesyonel</option>
+                                                        <option value="formal">🏛️ Resmî</option>
+                                                        <option value="friendly">🙂 Samimi</option>
+                                                        <option value="short">⚡ Kısa ve net</option>
+                                                    </select>
+                                                </label>
+
+                                                <button
+                                                    type="button"
+                                                    class="reply-button"
+                                                    data-gmail-id="{{ result.gmail_id|e }}"
+                                                    data-sender="{{ result.sender|e }}"
+                                                    data-subject="{{ result.subject|e }}"
+                                                    data-snippet="{{ result.snippet|e }}"
+                                                    data-summary="{{ result.summary|e }}"
+                                                    onclick="generateReply(this)"
+                                                >
+                                                    {% if result.reply_draft %}
+                                                        🔄 Seçilen Tonda Yeniden Oluştur
+                                                    {% else %}
+                                                        ✨ AI ile Cevap Taslağı Oluştur
+                                                    {% endif %}
+                                                </button>
+                                            </div>
 
                                             <div class="reply-result" {% if not result.reply_draft %}hidden{% endif %}>
                                                 <div class="analysis-label">AI Cevap Taslağı</div>

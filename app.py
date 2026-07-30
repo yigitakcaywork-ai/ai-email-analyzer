@@ -15,6 +15,7 @@ from database import (
 )
 from services.gmail_service import (
     archive_email as archive_gmail_email,
+    create_gmail_draft,
     get_recent_emails,
     move_email_to_inbox,
 )
@@ -352,6 +353,76 @@ def create_reply():
                 "error": error_message,
             }
         ), status_code
+
+
+@app.route(
+    "/create-gmail-draft",
+    methods=["POST"],
+)
+def save_reply_as_gmail_draft():
+    """
+    AI cevap metnini Gmail Taslaklar klasörüne kaydeder.
+    Mesaj otomatik gönderilmez.
+    """
+    data = request.get_json(silent=True) or {}
+
+    sender = str(data.get("sender", "")).strip()
+    subject = str(data.get("subject", "")).strip()
+    reply_text = str(data.get("reply", "")).strip()
+    thread_id = str(data.get("thread_id", "")).strip()
+
+    if not sender:
+        return jsonify({
+            "success": False,
+            "error": "Taslak alıcısı bulunamadı.",
+        }), 400
+
+    if not reply_text:
+        return jsonify({
+            "success": False,
+            "error": "Önce bir AI cevap taslağı oluşturun.",
+        }), 400
+
+    try:
+        draft = create_gmail_draft(
+            sender=sender,
+            subject=subject,
+            reply_text=reply_text,
+            thread_id=thread_id,
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Cevap Gmail Taslaklar klasörüne kaydedildi.",
+            "draft_id": draft.get("draft_id", ""),
+            "recipient": draft.get("recipient", ""),
+        })
+
+    except Exception as error:
+        error_message = str(error)
+        lowered_error = error_message.lower()
+
+        if (
+            "insufficient" in lowered_error
+            or "permission" in lowered_error
+            or "scope" in lowered_error
+        ):
+            status_code = 403
+            clean_message = (
+                "Gmail taslak oluşturma izni bulunamadı. "
+                "token.json dosyasını yenileyip Google iznini tekrar onaylayın."
+            )
+        else:
+            status_code = 500
+            clean_message = (
+                "Gmail taslağı oluşturulamadı: "
+                f"{error_message}"
+            )
+
+        return jsonify({
+            "success": False,
+            "error": clean_message,
+        }), status_code
 
 
 @app.route(

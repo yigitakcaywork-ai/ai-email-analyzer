@@ -318,9 +318,21 @@
                                             <div class="reply-result" {% if not result.reply_draft %}hidden{% endif %}>
                                                 <div class="analysis-label">AI Cevap Taslağı</div>
                                                 <div class="reply-text">{{ result.reply_draft or "" }}</div>
-                                                <button type="button" class="copy-button" onclick="copyReply(this)">
-                                                    📋 Panoya Kopyala
-                                                </button>
+                                                <div class="reply-result-actions">
+                                                    <button type="button" class="copy-button" onclick="copyReply(this)">
+                                                        📋 Panoya Kopyala
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        class="gmail-draft-button"
+                                                        onclick="createGmailDraft(this)"
+                                                    >
+                                                        📝 Gmail Taslağına Kaydet
+                                                    </button>
+                                                </div>
+
+                                                <div class="draft-status" hidden></div>
                                             </div>
                                         </div>
 

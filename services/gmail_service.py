@@ -1,4 +1,7 @@
+import base64
 import os
+from email.message import EmailMessage
+from email.utils import parseaddr
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -159,3 +162,70 @@ def move_email_to_inbox(gmail_id: str) -> bool:
     ).execute()
 
     return True
+
+
+def create_gmail_draft(
+    sender: str,
+    subject: str,
+    reply_text: str,
+    thread_id: str = "",
+) -> dict:
+    """
+    Oluşturulan AI cevabını Gmail taslağı olarak kaydeder.
+    Mesaj gönderilmez; yalnızca Taslaklar klasörüne eklenir.
+    """
+    recipient_email = parseaddr(sender)[1].strip()
+
+    if not recipient_email or "@" not in recipient_email:
+        raise ValueError(
+            "Gönderenin geçerli e-posta adresi bulunamadı."
+        )
+
+    cleaned_reply = str(reply_text or "").strip()
+
+    if not cleaned_reply:
+        raise ValueError(
+            "Gmail taslağı oluşturmak için cevap metni bulunamadı."
+        )
+
+    cleaned_subject = str(subject or "Konu yok").strip()
+
+    if not cleaned_subject.lower().startswith("re:"):
+        cleaned_subject = f"Re: {cleaned_subject}"
+
+    message = EmailMessage()
+    message["To"] = recipient_email
+    message["Subject"] = cleaned_subject
+    message.set_content(cleaned_reply)
+
+    raw_message = base64.urlsafe_b64encode(
+        message.as_bytes()
+    ).decode("utf-8")
+
+    gmail_message = {
+        "raw": raw_message,
+    }
+
+    if thread_id:
+        gmail_message["threadId"] = thread_id
+
+    service = get_gmail_service()
+
+    draft = (
+        service.users()
+        .drafts()
+        .create(
+            userId="me",
+            body={
+                "message": gmail_message,
+            },
+        )
+        .execute()
+    )
+
+    return {
+        "draft_id": draft.get("id", ""),
+        "message_id": draft.get("message", {}).get("id", ""),
+        "recipient": recipient_email,
+        "subject": cleaned_subject,
+    }

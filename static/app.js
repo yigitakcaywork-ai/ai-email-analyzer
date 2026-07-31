@@ -195,6 +195,10 @@ function initializeEmailFilters() {
             emptyState.hidden =
                 visibleCount !== 0;
         }
+
+        window.updateBulkSelection?.({
+            clearHiddenSelections: true
+        });
     }
 
 
@@ -840,3 +844,319 @@ async function restoreToInbox(button) {
             originalText;
     }
 }
+
+function initializeBulkActions() {
+    const checkboxes = Array.from(
+        document.querySelectorAll(
+            ".email-select-checkbox"
+        )
+    );
+
+    const selectVisibleCheckbox =
+        document.getElementById(
+            "selectVisibleEmails"
+        );
+
+    const actionBar =
+        document.getElementById(
+            "bulkActionBar"
+        );
+
+    const selectedCount =
+        document.getElementById(
+            "bulkSelectedCount"
+        );
+
+    const archiveButton =
+        document.getElementById(
+            "bulkArchiveButton"
+        );
+
+    const hideButton =
+        document.getElementById(
+            "bulkHideButton"
+        );
+
+    const clearButton =
+        document.getElementById(
+            "clearBulkSelectionButton"
+        );
+
+    const statusBox =
+        document.getElementById(
+            "bulkActionStatus"
+        );
+
+    if (
+        !checkboxes.length
+        || !selectVisibleCheckbox
+        || !actionBar
+    ) {
+        return;
+    }
+
+    const visibleCheckboxes = () =>
+        checkboxes.filter(checkbox => {
+            const card = checkbox.closest(
+                "[data-filter-card]"
+            );
+
+            return card && !card.hidden;
+        });
+
+    const checkedCheckboxes = () =>
+        checkboxes.filter(
+            checkbox => checkbox.checked
+        );
+
+    const setBusy = isBusy => {
+        checkboxes.forEach(checkbox => {
+            checkbox.disabled = isBusy;
+        });
+
+        selectVisibleCheckbox.disabled =
+            isBusy;
+
+        [archiveButton, hideButton, clearButton]
+            .filter(Boolean)
+            .forEach(button => {
+                button.disabled = isBusy;
+            });
+    };
+
+    const showStatus = (message, type) => {
+        if (!statusBox) {
+            return;
+        }
+
+        statusBox.textContent = message;
+        statusBox.className =
+            `bulk-action-status ${type}`;
+        statusBox.hidden = false;
+    };
+
+    window.updateBulkSelection = (options = {}) => {
+        if (options.clearHiddenSelections) {
+            checkboxes.forEach(checkbox => {
+                const card = checkbox.closest(
+                    "[data-filter-card]"
+                );
+
+                if (card?.hidden) {
+                    checkbox.checked = false;
+                    card.classList.remove(
+                        "selected"
+                    );
+                }
+            });
+        }
+
+        checkboxes.forEach(checkbox => {
+            checkbox
+                .closest(".email-card")
+                ?.classList.toggle(
+                    "selected",
+                    checkbox.checked
+                );
+        });
+
+        const selected = checkedCheckboxes();
+        const visible = visibleCheckboxes();
+        const selectedVisibleCount =
+            visible.filter(
+                checkbox => checkbox.checked
+            ).length;
+
+        actionBar.hidden = selected.length === 0;
+
+        if (selectedCount) {
+            selectedCount.textContent =
+                `${selected.length} e-posta seçildi`;
+        }
+
+        selectVisibleCheckbox.checked =
+            visible.length > 0
+            && selectedVisibleCount
+            === visible.length;
+
+        selectVisibleCheckbox.indeterminate =
+            selectedVisibleCount > 0
+            && selectedVisibleCount
+            < visible.length;
+    };
+
+    selectVisibleCheckbox.addEventListener(
+        "change",
+        () => {
+            visibleCheckboxes().forEach(
+                checkbox => {
+                    checkbox.checked =
+                        selectVisibleCheckbox.checked;
+                }
+            );
+
+            window.updateBulkSelection();
+        }
+    );
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener(
+            "change",
+            () => window.updateBulkSelection()
+        );
+    });
+
+    clearButton?.addEventListener(
+        "click",
+        () => {
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+            if (statusBox) {
+                statusBox.hidden = true;
+            }
+
+            window.updateBulkSelection();
+        }
+    );
+
+    async function runBulkAction({
+        endpoint,
+        confirmationMessage,
+        busyText,
+        button
+    }) {
+        const selected = checkedCheckboxes();
+        const gmailIds = selected.map(
+            checkbox => checkbox.value
+        );
+
+        if (!gmailIds.length) {
+            return;
+        }
+
+        if (!window.confirm(confirmationMessage)) {
+            return;
+        }
+
+        const originalText =
+            button.textContent.trim();
+
+        setBusy(true);
+        button.textContent = busyText;
+
+        if (statusBox) {
+            statusBox.hidden = true;
+        }
+
+        try {
+            const response = await fetch(
+                endpoint,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        gmail_ids: gmailIds
+                    })
+                }
+            );
+
+            const data =
+                await readJsonResponse(response);
+
+            const completedIds = new Set(
+                data.completed_ids || []
+            );
+
+            checkboxes.forEach(checkbox => {
+                if (completedIds.has(checkbox.value)) {
+                    checkbox
+                        .closest(".email-card")
+                        ?.classList.add("removing");
+                }
+            });
+
+            if (!response.ok && !completedIds.size) {
+                throw new Error(
+                    data.error
+                    || "Toplu işlem tamamlanamadı."
+                );
+            }
+
+            const failedCount =
+                Number(data.failed_count || 0);
+
+            if (failedCount > 0) {
+                showStatus(
+                    `${data.completed_count || 0} işlem tamamlandı, `
+                    + `${failedCount} işlem başarısız oldu.`,
+                    "warning"
+                );
+
+                setTimeout(
+                    () => window.location.reload(),
+                    1500
+                );
+            } else {
+                showStatus(
+                    data.message
+                    || "Toplu işlem tamamlandı.",
+                    "success"
+                );
+
+                setTimeout(
+                    () => window.location.reload(),
+                    500
+                );
+            }
+
+        } catch (error) {
+            showStatus(
+                `Hata: ${error.message}`,
+                "error"
+            );
+
+            setBusy(false);
+            button.textContent = originalText;
+        }
+    }
+
+    archiveButton?.addEventListener(
+        "click",
+        () => runBulkAction({
+            endpoint: "/bulk-archive-emails",
+            confirmationMessage:
+                `${checkedCheckboxes().length} e-posta `
+                + "Gmail'de arşivlenecek ve panelden "
+                + "gizlenecek. Devam edilsin mi?",
+            busyText: "⏳ Arşivleniyor...",
+            button: archiveButton
+        })
+    );
+
+    hideButton?.addEventListener(
+        "click",
+        () => runBulkAction({
+            endpoint: "/bulk-hide-emails",
+            confirmationMessage:
+                `${checkedCheckboxes().length} e-posta `
+                + "yalnızca panelden gizlenecek. "
+                + "Gmail mesajları değişmeyecek. "
+                + "Devam edilsin mi?",
+            busyText: "⏳ Gizleniyor...",
+            button: hideButton
+        })
+    );
+
+    window.updateBulkSelection();
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    initializeBulkActions
+);

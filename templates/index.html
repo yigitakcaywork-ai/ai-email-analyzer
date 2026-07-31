@@ -110,6 +110,85 @@
             </div>
         {% endif %}
 
+        {% if not show_hidden %}
+            <section class="smart-dashboard" aria-label="Akıllı gelen kutusu özeti">
+                <div class="smart-dashboard-header">
+                    <div>
+                        <span class="smart-dashboard-eyebrow">🤖 Akıllı Dashboard</span>
+                        <h3>Bugün neye odaklanmalısın?</h3>
+                    </div>
+
+                    <div class="inbox-score-card">
+                        <span>Inbox Score</span>
+                        <strong>{{ inbox_score }}/100</strong>
+                    </div>
+                </div>
+
+                <div class="smart-dashboard-grid">
+                    <article class="smart-summary-card recommendation-card">
+                        <div class="smart-card-label">AI ÖNERİSİ</div>
+                        <p>{{ dashboard_recommendation }}</p>
+
+                        <div class="smart-metrics">
+                            <span>✉️ {{ reply_needed_count }} cevap bekliyor</span>
+                            <span>🔴 {{ urgent_count }} acil</span>
+                            <span>🧹 {{ clutter_count }} temizlenebilir</span>
+                            <span>⭐ Ortalama önem {{ average_importance }}/10</span>
+                        </div>
+                    </article>
+
+                    <article class="smart-summary-card">
+                        <div class="smart-card-label">KATEGORİ DAĞILIMI</div>
+
+                        {% if top_categories %}
+                            <div class="category-summary-list">
+                                {% for category in top_categories %}
+                                    <div class="category-summary-row">
+                                        <span>{{ category.name }}</span>
+                                        <strong>{{ category.count }}</strong>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="smart-empty-text">Henüz analiz edilmiş e-posta yok.</p>
+                        {% endif %}
+                    </article>
+                </div>
+
+                <div class="focus-queue">
+                    <div class="focus-queue-header">
+                        <div>
+                            <span class="smart-card-label">ODAK SIRASI</span>
+                            <h4>Önce bu e-postaları incele</h4>
+                        </div>
+                        <span>{{ focus_emails|length }} öneri</span>
+                    </div>
+
+                    {% if focus_emails %}
+                        <div class="focus-email-list">
+                            {% for focus in focus_emails %}
+                                <a class="focus-email-item" href="#email-{{ focus.gmail_id|e }}">
+                                    <div>
+                                        <strong>{{ focus.subject }}</strong>
+                                        <span>{{ focus.sender }}</span>
+                                    </div>
+
+                                    <div class="focus-email-meta">
+                                        <span>{{ focus.urgency }}</span>
+                                        <strong>{{ focus.importance_score }}/10</strong>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="focus-empty-state">
+                            ✅ Şu anda kritik veya cevap bekleyen e-posta görünmüyor.
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
         <section>
             <div class="section-header">
                 <div>
@@ -189,6 +268,35 @@
                     <span>Arama kelimesini değiştir veya filtreleri temizle.</span>
                 </div>
 
+                {% if not show_hidden %}
+                    <div class="bulk-selection-panel" aria-label="Toplu e-posta işlemleri">
+                        <label class="bulk-select-visible">
+                            <input id="selectVisibleEmails" type="checkbox">
+                            <span>Görünenlerin tümünü seç</span>
+                        </label>
+
+                        <div id="bulkActionBar" class="bulk-action-bar" hidden>
+                            <strong id="bulkSelectedCount">0 e-posta seçildi</strong>
+
+                            <div class="bulk-action-buttons">
+                                <button id="bulkArchiveButton" class="bulk-archive-button" type="button">
+                                    📥 Seçilenleri Arşivle
+                                </button>
+
+                                <button id="bulkHideButton" class="bulk-hide-button" type="button">
+                                    ✅ Seçilenleri Gizle
+                                </button>
+
+                                <button id="clearBulkSelectionButton" class="bulk-clear-button" type="button">
+                                    ✕ Seçimi Temizle
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="bulkActionStatus" class="bulk-action-status" hidden></div>
+                    </div>
+                {% endif %}
+
                 {% for group in grouped_results %}
                     <section class="date-group" data-date-group>
                         <div class="date-heading">
@@ -207,13 +315,27 @@
                                 {% endif %}
 
                                 <article
+                                    id="email-{{ result.gmail_id|e }}"
                                     class="email-card {{ urgency_class }} {% if show_hidden %}hidden-email{% endif %}"
                                     data-filter-card
                                     data-search="{{ (result.subject ~ ' ' ~ result.sender ~ ' ' ~ result.summary ~ ' ' ~ result.recommended_action ~ ' ' ~ result.category)|e }}"
                                     data-urgency="{{ result.urgency|e }}"
                                     data-reply-needed="{{ 'true' if result.reply_needed else 'false' }}"
                                     data-category="{{ result.category|e }}"
+                                    data-gmail-id="{{ result.gmail_id|e }}"
                                 >
+                                    {% if not show_hidden %}
+                                        <label class="email-select-control" title="Bu e-postayı seç">
+                                            <input
+                                                class="email-select-checkbox"
+                                                type="checkbox"
+                                                value="{{ result.gmail_id|e }}"
+                                                aria-label="{{ result.subject|e }} e-postasını seç"
+                                            >
+                                            <span class="email-select-box">✓</span>
+                                        </label>
+                                    {% endif %}
+
                                     <div class="email-top">
                                         <div class="email-title">
                                             <h5>{{ result.subject }}</h5>

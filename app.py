@@ -149,6 +149,110 @@ def create_dashboard_data(
             today_count = len(group["emails"])
             break
 
+    category_counts = {}
+
+    for email in visible_emails:
+        category = str(
+            email.get("category", "Diğer") or "Diğer"
+        ).strip()
+        category_counts[category] = (
+            category_counts.get(category, 0) + 1
+        )
+
+    top_categories = [
+        {"name": name, "count": count}
+        for name, count in sorted(
+            category_counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[:5]
+    ]
+
+    importance_values = [
+        int(email.get("importance_score", 1) or 1)
+        for email in visible_emails
+    ]
+
+    average_importance = (
+        round(
+            sum(importance_values) / len(importance_values),
+            1,
+        )
+        if importance_values
+        else 0
+    )
+
+    urgency_weight = {
+        "Yüksek": 30,
+        "Orta": 15,
+        "Düşük": 0,
+    }
+
+    def focus_score(email: dict) -> int:
+        return (
+            urgency_weight.get(email.get("urgency"), 0)
+            + (20 if email.get("reply_needed") else 0)
+            + int(email.get("importance_score", 1) or 1)
+        )
+
+    focus_emails = sorted(
+        [
+            email
+            for email in visible_emails
+            if (
+                email.get("reply_needed")
+                or email.get("urgency") == "Yüksek"
+                or int(email.get("importance_score", 1) or 1) >= 8
+            )
+        ],
+        key=lambda email: (
+            -focus_score(email),
+            -int(email.get("internal_date", 0) or 0),
+        ),
+    )[:3]
+
+    clutter_categories = {
+        "Reklam",
+        "Bildirim",
+        "Sosyal",
+    }
+    clutter_count = sum(
+        1
+        for email in visible_emails
+        if email.get("category") in clutter_categories
+    )
+
+    inbox_score = max(
+        0,
+        min(
+            100,
+            100
+            - (urgent_count * 12)
+            - (reply_needed_count * 6)
+            - (clutter_count * 2),
+        ),
+    )
+
+    if urgent_count > 0:
+        dashboard_recommendation = (
+            f"Önce {urgent_count} yüksek aciliyetli e-postayı incele. "
+            "Ardından cevap bekleyen mesajlara geç."
+        )
+    elif reply_needed_count > 0:
+        dashboard_recommendation = (
+            f"Şu anda {reply_needed_count} e-posta cevap bekliyor. "
+            "AI taslaklarını hazırlayıp Gmail'e kaydet."
+        )
+    elif clutter_count > 0:
+        dashboard_recommendation = (
+            f"{clutter_count} düşük öncelikli reklam veya bildirim var. "
+            "Toplu seçimle gelen kutunu temizleyebilirsin."
+        )
+    else:
+        dashboard_recommendation = (
+            "Gelen kutun kontrol altında görünüyor. "
+            "Yeni mesajları tarayarak güncel kal."
+        )
+
     return {
         "results": selected_emails,
         "grouped_results": grouped_results,
@@ -158,6 +262,12 @@ def create_dashboard_data(
         "reply_needed_count": reply_needed_count,
         "hidden_count": len(hidden_emails),
         "show_hidden": show_hidden,
+        "top_categories": top_categories,
+        "average_importance": average_importance,
+        "focus_emails": focus_emails,
+        "inbox_score": inbox_score,
+        "clutter_count": clutter_count,
+        "dashboard_recommendation": dashboard_recommendation,
     }
 
 
@@ -179,6 +289,34 @@ def render_dashboard(
 def get_gmail_id_from_request() -> str:
     data = request.get_json(silent=True) or {}
     return str(data.get("gmail_id", "")).strip()
+
+
+def get_gmail_ids_from_request(
+    max_items: int = 100,
+) -> list[str]:
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get("gmail_ids", [])
+
+    if not isinstance(raw_ids, list):
+        return []
+
+    gmail_ids = []
+    seen_ids = set()
+
+    for raw_id in raw_ids:
+        gmail_id = str(raw_id or "").strip()
+
+        if (
+            gmail_id
+            and gmail_id not in seen_ids
+        ):
+            gmail_ids.append(gmail_id)
+            seen_ids.add(gmail_id)
+
+        if len(gmail_ids) >= max_items:
+            break
+
+    return gmail_ids
 
 
 @app.route("/")
@@ -663,6 +801,97 @@ def restore_email_to_gmail_inbox():
                 "error": clean_message,
             }
         ), status_code
+
+
+@app.route(
+    "/bulk-hide-emails",
+    methods=["POST"],
+)
+def bulk_hide_emails():
+    gmail_ids = get_gmail_ids_from_request()
+
+    if not gmail_ids:
+        return jsonify({
+            "success": False,
+            "error": "Gizlenecek e-posta seçilmedi.",
+        }), 400
+
+    completed_ids = []
+    failed_items = []
+
+    for gmail_id in gmail_ids:
+        try:
+            if hide_email(gmail_id):
+                completed_ids.append(gmail_id)
+            else:
+                failed_items.append({
+                    "gmail_id": gmail_id,
+                    "error": "Panel kaydı bulunamadı.",
+                })
+        except Exception as error:
+            failed_items.append({
+                "gmail_id": gmail_id,
+                "error": str(error),
+            })
+
+    return jsonify({
+        "success": bool(completed_ids),
+        "completed_ids": completed_ids,
+        "failed_items": failed_items,
+        "completed_count": len(completed_ids),
+        "failed_count": len(failed_items),
+        "message": (
+            f"{len(completed_ids)} e-posta panelden gizlendi."
+        ),
+        "hidden_count": get_hidden_email_count(),
+    }), 200 if completed_ids else 500
+
+
+@app.route(
+    "/bulk-archive-emails",
+    methods=["POST"],
+)
+def bulk_archive_emails():
+    gmail_ids = get_gmail_ids_from_request()
+
+    if not gmail_ids:
+        return jsonify({
+            "success": False,
+            "error": "Arşivlenecek e-posta seçilmedi.",
+        }), 400
+
+    completed_ids = []
+    failed_items = []
+
+    for gmail_id in gmail_ids:
+        try:
+            archive_gmail_email(gmail_id)
+
+            if not hide_email(gmail_id):
+                raise RuntimeError(
+                    "Gmail'de arşivlendi ancak panel kaydı gizlenemedi."
+                )
+
+            completed_ids.append(gmail_id)
+
+        except Exception as error:
+            failed_items.append({
+                "gmail_id": gmail_id,
+                "error": str(error),
+            })
+
+    return jsonify({
+        "success": bool(completed_ids),
+        "completed_ids": completed_ids,
+        "failed_items": failed_items,
+        "completed_count": len(completed_ids),
+        "failed_count": len(failed_items),
+        "message": (
+            f"{len(completed_ids)} e-posta Gmail'de arşivlendi "
+            "ve panelden gizlendi."
+        ),
+        "hidden_count": get_hidden_email_count(),
+    }), 200 if completed_ids else 500
 
 
 if __name__ == "__main__":

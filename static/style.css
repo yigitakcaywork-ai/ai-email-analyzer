@@ -806,3 +806,419 @@ button { border: 0; }
         width: 100%;
     }
 }
+
+
+/* Toplu seçim ve toplu işlem alanı */
+.bulk-selection-panel {
+    margin: 0 0 22px;
+}
+
+.bulk-select-visible {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 12px;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.bulk-select-visible input,
+.email-select-checkbox {
+    accent-color: #7c3aed;
+}
+
+.bulk-action-bar {
+    position: sticky;
+    top: 14px;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 16px;
+    background: rgba(30, 41, 59, 0.96);
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(14px);
+}
+
+.bulk-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+.bulk-archive-button,
+.bulk-hide-button,
+.bulk-clear-button {
+    min-height: 40px;
+    padding: 0 13px;
+    border-radius: 11px;
+    cursor: pointer;
+    font-weight: 900;
+}
+
+.bulk-archive-button {
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    background: rgba(59, 130, 246, 0.16);
+    color: #93c5fd;
+}
+
+.bulk-hide-button {
+    border: 1px solid rgba(34, 197, 94, 0.24);
+    background: rgba(34, 197, 94, 0.15);
+    color: #86efac;
+}
+
+.bulk-clear-button {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(51, 65, 85, 0.7);
+    color: #cbd5e1;
+}
+
+.bulk-action-bar button:disabled {
+    cursor: wait;
+    opacity: 0.62;
+}
+
+.bulk-action-status {
+    margin-top: 10px;
+    padding: 11px 13px;
+    border-radius: 11px;
+    font-size: 13px;
+}
+
+.bulk-action-status.success {
+    border: 1px solid rgba(34, 197, 94, 0.24);
+    background: rgba(20, 83, 45, 0.25);
+    color: #bbf7d0;
+}
+
+.bulk-action-status.warning {
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    background: rgba(120, 53, 15, 0.26);
+    color: #fde68a;
+}
+
+.bulk-action-status.error {
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    background: rgba(127, 29, 29, 0.28);
+    color: #fecaca;
+}
+
+.email-card {
+    padding-top: 54px;
+}
+
+.email-card.selected {
+    border-color: rgba(167, 139, 250, 0.48);
+    box-shadow:
+        0 0 0 2px rgba(124, 58, 237, 0.14),
+        0 16px 45px rgba(0, 0, 0, 0.24);
+}
+
+.email-select-control {
+    position: absolute;
+    top: 17px;
+    left: 19px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.email-select-checkbox {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.email-select-box {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    border: 1px solid rgba(148, 163, 184, 0.36);
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.92);
+    color: transparent;
+    font-size: 14px;
+    font-weight: 900;
+    transition: 0.18s ease;
+}
+
+.email-select-checkbox:checked + .email-select-box {
+    border-color: rgba(167, 139, 250, 0.72);
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white;
+}
+
+.email-select-checkbox:focus-visible + .email-select-box {
+    outline: 3px solid rgba(96, 165, 250, 0.3);
+    outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+    .bulk-action-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .bulk-action-buttons {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .bulk-action-buttons button {
+        width: 100%;
+    }
+}
+
+
+/* Smart Dashboard v1.2 */
+.smart-dashboard {
+    margin: 28px 0 34px;
+    padding: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 24px;
+    background: rgba(15, 23, 42, 0.76);
+    box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+}
+
+.smart-dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.smart-dashboard-header h3 {
+    margin: 7px 0 0;
+    font-size: 25px;
+}
+
+.smart-dashboard-eyebrow,
+.smart-card-label {
+    color: #a78bfa;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+}
+
+.inbox-score-card {
+    min-width: 130px;
+    padding: 13px 16px;
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    border-radius: 16px;
+    background: rgba(34, 197, 94, 0.09);
+    text-align: right;
+}
+
+.inbox-score-card span {
+    display: block;
+    color: #86efac;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.inbox-score-card strong {
+    display: block;
+    margin-top: 3px;
+    font-size: 25px;
+}
+
+.smart-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 0.65fr;
+    gap: 15px;
+}
+
+.smart-summary-card,
+.focus-queue {
+    padding: 19px;
+    border: 1px solid rgba(148, 163, 184, 0.11);
+    border-radius: 18px;
+    background: rgba(30, 41, 59, 0.64);
+}
+
+.recommendation-card p {
+    margin: 10px 0 16px;
+    color: #e2e8f0;
+    font-size: 16px;
+    line-height: 1.65;
+}
+
+.smart-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.smart-metrics span {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.64);
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.category-summary-list {
+    display: grid;
+    gap: 9px;
+    margin-top: 12px;
+}
+
+.category-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+    color: #cbd5e1;
+}
+
+.category-summary-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.category-summary-row strong {
+    color: #93c5fd;
+}
+
+.smart-empty-text {
+    color: #94a3b8;
+}
+
+.focus-queue {
+    margin-top: 15px;
+}
+
+.focus-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 13px;
+}
+
+.focus-queue-header h4 {
+    margin: 5px 0 0;
+    font-size: 18px;
+}
+
+.focus-queue-header > span {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.focus-email-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.focus-email-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid rgba(96, 165, 250, 0.15);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.64);
+    color: #e2e8f0;
+    text-decoration: none;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.focus-email-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.38);
+}
+
+.focus-email-item > div:first-child {
+    min-width: 0;
+}
+
+.focus-email-item strong,
+.focus-email-item span {
+    display: block;
+}
+
+.focus-email-item > div:first-child strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.focus-email-item > div:first-child span {
+    margin-top: 5px;
+    overflow: hidden;
+    color: #94a3b8;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.focus-email-meta {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.focus-email-meta span {
+    color: #fca5a5;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.focus-email-meta strong {
+    margin-top: 3px;
+    color: #93c5fd;
+}
+
+.focus-empty-state {
+    padding: 16px;
+    border-radius: 13px;
+    background: rgba(34, 197, 94, 0.08);
+    color: #86efac;
+    text-align: center;
+}
+
+.email-card:target {
+    border-color: rgba(167, 139, 250, 0.55);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14), 0 16px 45px rgba(0, 0, 0, 0.24);
+}
+
+@media (max-width: 900px) {
+    .smart-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .focus-email-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .smart-dashboard {
+        padding: 18px;
+    }
+
+    .smart-dashboard-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .inbox-score-card {
+        width: 100%;
+        text-align: left;
+    }
+}

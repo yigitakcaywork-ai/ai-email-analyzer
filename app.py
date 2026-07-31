@@ -12,6 +12,7 @@ from database import (
     restore_email,
     save_analyzed_email,
     save_reply_draft,
+    set_email_favorite,
 )
 from services.gmail_service import (
     archive_email as archive_gmail_email,
@@ -126,9 +127,35 @@ def create_dashboard_data(
         else visible_emails
     )
 
-    grouped_results = group_emails_by_date(
-        selected_emails
-    )
+    if show_hidden:
+        grouped_results = group_emails_by_date(
+            selected_emails
+        )
+    else:
+        favorite_emails = [
+            email
+            for email in selected_emails
+            if email.get("is_favorite")
+        ]
+        regular_emails = [
+            email
+            for email in selected_emails
+            if not email.get("is_favorite")
+        ]
+        grouped_results = []
+
+        if favorite_emails:
+            grouped_results.append(
+                {
+                    "title": "⭐ Favoriler",
+                    "emails": favorite_emails,
+                    "is_favorite_group": True,
+                }
+            )
+
+        grouped_results.extend(
+            group_emails_by_date(regular_emails)
+        )
 
     urgent_count = sum(
         1
@@ -191,6 +218,7 @@ def create_dashboard_data(
         return (
             urgency_weight.get(email.get("urgency"), 0)
             + (20 if email.get("reply_needed") else 0)
+            + (12 if email.get("is_favorite") else 0)
             + int(email.get("importance_score", 1) or 1)
         )
 
@@ -253,6 +281,16 @@ def create_dashboard_data(
             "Yeni mesajları tarayarak güncel kal."
         )
 
+    favorite_count = sum(
+        1 for email in visible_emails
+        if email.get("is_favorite")
+    )
+    favorite_reply_count = sum(
+        1 for email in visible_emails
+        if email.get("is_favorite")
+        and email.get("reply_needed")
+    )
+
     return {
         "results": selected_emails,
         "grouped_results": grouped_results,
@@ -268,6 +306,8 @@ def create_dashboard_data(
         "inbox_score": inbox_score,
         "clutter_count": clutter_count,
         "dashboard_recommendation": dashboard_recommendation,
+        "favorite_count": favorite_count,
+        "favorite_reply_count": favorite_reply_count,
     }
 
 
@@ -801,6 +841,49 @@ def restore_email_to_gmail_inbox():
                 "error": clean_message,
             }
         ), status_code
+
+
+@app.route(
+    "/toggle-favorite",
+    methods=["POST"],
+)
+def toggle_favorite():
+    data = request.get_json(silent=True) or {}
+    gmail_id = str(data.get("gmail_id", "")).strip()
+    is_favorite = bool(data.get("is_favorite", False))
+
+    if not gmail_id:
+        return jsonify(
+            {
+                "success": False,
+                "error": "Favori durumu değiştirilecek e-posta bulunamadı.",
+            }
+        ), 400
+
+    updated = set_email_favorite(
+        gmail_id=gmail_id,
+        is_favorite=is_favorite,
+    )
+
+    if not updated:
+        return jsonify(
+            {
+                "success": False,
+                "error": "E-posta bulunamadı veya favori durumu güncellenemedi.",
+            }
+        ), 404
+
+    return jsonify(
+        {
+            "success": True,
+            "is_favorite": is_favorite,
+            "message": (
+                "E-posta favorilere eklendi."
+                if is_favorite
+                else "E-posta favorilerden çıkarıldı."
+            ),
+        }
+    )
 
 
 @app.route(

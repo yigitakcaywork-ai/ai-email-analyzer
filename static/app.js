@@ -24,6 +24,9 @@ function initializeEmailFilters() {
     const categoryFilter =
         document.getElementById("categoryFilter");
 
+    const favoriteFilter =
+        document.getElementById("favoriteFilter");
+
     const clearButton =
         document.getElementById("clearFiltersButton");
 
@@ -39,6 +42,7 @@ function initializeEmailFilters() {
         || !urgencyFilter
         || !replyFilter
         || !categoryFilter
+        || !favoriteFilter
     ) {
         return;
     }
@@ -89,6 +93,9 @@ function initializeEmailFilters() {
         const categoryValue =
             categoryFilter.value;
 
+        const favoriteValue =
+            favoriteFilter.value;
+
         let visibleCount = 0;
 
         cards.forEach(card => {
@@ -109,6 +116,10 @@ function initializeEmailFilters() {
 
             const replyNeeded =
                 card.dataset.replyNeeded
+                === "true";
+
+            const isFavorite =
+                card.dataset.favorite
                 === "true";
 
             const matchesSearch =
@@ -141,11 +152,17 @@ function initializeEmailFilters() {
                     && !replyNeeded
                 );
 
+            const matchesFavorite =
+                favoriteValue === "all"
+                || (favoriteValue === "favorites" && isFavorite)
+                || (favoriteValue === "not-favorites" && !isFavorite);
+
             const shouldShow =
                 matchesSearch
                 && matchesUrgency
                 && matchesCategory
-                && matchesReply;
+                && matchesReply
+                && matchesFavorite;
 
             card.hidden = !shouldShow;
 
@@ -206,7 +223,8 @@ function initializeEmailFilters() {
         searchInput,
         urgencyFilter,
         replyFilter,
-        categoryFilter
+        categoryFilter,
+        favoriteFilter
     ].forEach(control => {
         control.addEventListener(
             "input",
@@ -227,6 +245,7 @@ function initializeEmailFilters() {
             urgencyFilter.value = "all";
             replyFilter.value = "all";
             categoryFilter.value = "all";
+            favoriteFilter.value = "all";
 
             searchInput.focus();
             applyFilters();
@@ -561,6 +580,49 @@ async function createGmailDraft(button) {
 
     } finally {
         button.disabled = false;
+    }
+}
+
+
+async function toggleFavorite(button) {
+    const gmailId = button.dataset.gmailId;
+    const currentlyFavorite =
+        button.dataset.favorite === "true";
+    const nextFavorite = !currentlyFavorite;
+    const originalText = button.textContent;
+
+    button.disabled = true;
+    button.textContent = "…";
+
+    try {
+        const response = await fetch(
+            "/toggle-favorite",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    gmail_id: gmailId,
+                    is_favorite: nextFavorite
+                })
+            }
+        );
+
+        const data = await readJsonResponse(response);
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Favori durumu güncellenemedi."
+            );
+        }
+
+        window.location.reload();
+
+    } catch (error) {
+        window.alert(`Hata: ${error.message}`);
+        button.disabled = false;
+        button.textContent = originalText;
     }
 }
 

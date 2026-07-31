@@ -48,6 +48,8 @@ def init_database():
                 recommended_action TEXT,
                 reply_needed INTEGER DEFAULT 0,
                 reply_draft TEXT,
+                is_favorite INTEGER NOT NULL DEFAULT 0,
+                favorited_at TEXT,
                 is_hidden INTEGER NOT NULL DEFAULT 0,
                 hidden_at TEXT,
                 analyzed_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -88,6 +90,31 @@ def init_database():
                 """
                 ALTER TABLE emails
                 ADD COLUMN hidden_at TEXT
+                """
+            )
+
+        if not column_exists(
+            connection,
+            "emails",
+            "is_favorite",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE emails
+                ADD COLUMN is_favorite
+                INTEGER NOT NULL DEFAULT 0
+                """
+            )
+
+        if not column_exists(
+            connection,
+            "emails",
+            "favorited_at",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE emails
+                ADD COLUMN favorited_at TEXT
                 """
             )
 
@@ -222,6 +249,8 @@ def get_saved_emails(
             recommended_action,
             reply_needed,
             reply_draft,
+            is_favorite,
+            favorited_at,
             is_hidden,
             hidden_at,
             analyzed_at
@@ -246,6 +275,9 @@ def get_saved_emails(
         email["reply_needed"] = bool(
             email["reply_needed"]
         )
+        email["is_favorite"] = bool(
+            email["is_favorite"]
+        )
         email["is_hidden"] = bool(
             email["is_hidden"]
         )
@@ -253,6 +285,34 @@ def get_saved_emails(
         results.append(email)
 
     return results
+
+
+def set_email_favorite(
+    gmail_id: str,
+    is_favorite: bool,
+) -> bool:
+    """E-postanın favori durumunu kalıcı olarak günceller."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE emails
+            SET
+                is_favorite = ?,
+                favorited_at = CASE
+                    WHEN ? = 1 THEN CURRENT_TIMESTAMP
+                    ELSE NULL
+                END
+            WHERE gmail_id = ?
+            """,
+            (
+                int(bool(is_favorite)),
+                int(bool(is_favorite)),
+                gmail_id,
+            ),
+        )
+        connection.commit()
+
+    return cursor.rowcount > 0
 
 
 def hide_email(gmail_id: str) -> bool:

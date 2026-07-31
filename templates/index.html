@@ -134,6 +134,7 @@
                             <span>🔴 {{ urgent_count }} acil</span>
                             <span>🧹 {{ clutter_count }} temizlenebilir</span>
                             <span>⭐ Ortalama önem {{ average_importance }}/10</span>
+                                <span>📌 {{ favorite_count }} favori</span>
                         </div>
                     </article>
 
@@ -248,6 +249,14 @@
                             </select>
                         </div>
 
+                        <div class="filter-field">
+                            <select id="favoriteFilter" class="filter-select" aria-label="Favori filtresi">
+                                <option value="all">Tüm e-postalar</option>
+                                <option value="favorites">⭐ Sadece favoriler</option>
+                                <option value="not-favorites">☆ Favori olmayanlar</option>
+                            </select>
+                        </div>
+
                         <button
                             id="clearFiltersButton"
                             class="clear-filters-button"
@@ -316,14 +325,27 @@
 
                                 <article
                                     id="email-{{ result.gmail_id|e }}"
-                                    class="email-card {{ urgency_class }} {% if show_hidden %}hidden-email{% endif %}"
+                                    class="email-card {{ urgency_class }} {% if show_hidden %}hidden-email{% endif %} {% if result.is_favorite %}favorite-email{% endif %}"
                                     data-filter-card
                                     data-search="{{ (result.subject ~ ' ' ~ result.sender ~ ' ' ~ result.summary ~ ' ' ~ result.recommended_action ~ ' ' ~ result.category)|e }}"
                                     data-urgency="{{ result.urgency|e }}"
                                     data-reply-needed="{{ 'true' if result.reply_needed else 'false' }}"
                                     data-category="{{ result.category|e }}"
+                                    data-favorite="{{ 'true' if result.is_favorite else 'false' }}"
                                     data-gmail-id="{{ result.gmail_id|e }}"
                                 >
+                                    <button
+                                        type="button"
+                                        class="favorite-button {% if result.is_favorite %}active{% endif %}"
+                                        data-gmail-id="{{ result.gmail_id|e }}"
+                                        data-favorite="{{ 'true' if result.is_favorite else 'false' }}"
+                                        onclick="toggleFavorite(this)"
+                                        title="{% if result.is_favorite %}Favorilerden çıkar{% else %}Favorilere ekle{% endif %}"
+                                        aria-label="{% if result.is_favorite %}Favorilerden çıkar{% else %}Favorilere ekle{% endif %}"
+                                    >
+                                        {% if result.is_favorite %}★{% else %}☆{% endif %}
+                                    </button>
+
                                     {% if not show_hidden %}
                                         <label class="email-select-control" title="Bu e-postayı seç">
                                             <input
@@ -358,6 +380,10 @@
 
                                     <div class="badges">
                                         <span class="badge">📂 {{ result.category }}</span>
+
+                                        {% if result.is_favorite %}
+                                            <span class="badge badge-favorite">⭐ Favori</span>
+                                        {% endif %}
 
                                         {% if result.urgency == "Yüksek" %}
                                             <span class="badge badge-high">🔴 Yüksek aciliyet</span>

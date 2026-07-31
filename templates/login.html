@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap — AI Email Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-card">
+            <div class="login-logo">📧</div>
+            <div class="eyebrow">Yapay zekâ destekli gelen kutusu</div>
+            <h1>AI Email Analyzer</h1>
+            <p>Gelen kutunu analiz et, önceliklendir, cevap taslakları oluştur ve takiplerini tek yerden yönet.</p>
+
+            {% if error %}
+                <div class="login-error">⚠️ {{ error }}</div>
+            {% endif %}
+
+            <a class="google-login-button" href="{{ url_for('auth.oauth_start') }}">
+                <span class="google-mark">G</span>
+                Google ile devam et
+            </a>
+
+            <div class="login-note">
+                Bu adım yalnızca kullanıcı girişini doğrular. Gmail işlemleri şimdilik mevcut yerel bağlantıyla çalışır.
+            </div>
+        </section>
+    </main>
+</body>
+</html>

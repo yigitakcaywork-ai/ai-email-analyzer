@@ -1315,3 +1315,80 @@ button { border: 0; }
     .follow-up-controls { align-items: stretch; flex-direction: column; }
     .follow-up-preset, .follow-up-date, .follow-up-set-button, .follow-up-complete-button { width: 100%; }
 }
+
+
+/* Google Login ve kullanıcı oturumu */
+.login-page {
+    display: grid;
+    min-height: 100vh;
+    place-items: center;
+}
+
+.login-shell {
+    width: min(92%, 520px);
+    padding: 40px 0;
+}
+
+.login-card {
+    padding: 42px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 28px;
+    background: rgba(15, 23, 42, 0.86);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    text-align: center;
+}
+
+.login-logo {
+    display: grid;
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 20px;
+    place-items: center;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    font-size: 34px;
+}
+
+.login-card h1 { margin: 10px 0 14px; font-size: 34px; }
+.login-card p { margin: 0; color: #94a3b8; line-height: 1.7; }
+
+.google-login-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 28px;
+    padding: 15px 20px;
+    border-radius: 14px;
+    background: #f8fafc;
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 900;
+    transition: transform 0.2s ease;
+}
+.google-login-button:hover { transform: translateY(-2px); }
+.google-mark { font-size: 20px; font-weight: 900; }
+.login-note { margin-top: 18px; color: #64748b; font-size: 12px; line-height: 1.6; }
+.login-error { margin-top: 20px; padding: 13px; border-radius: 12px; background: rgba(127,29,29,.3); color: #fecaca; }
+
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.7);
+}
+.user-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.user-details { display: flex; flex-direction: column; max-width: 180px; }
+.user-details strong, .user-details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-details strong { font-size: 12px; }
+.user-details span { color: #94a3b8; font-size: 10px; }
+.logout-button { padding: 8px 10px; border-radius: 9px; background: rgba(239,68,68,.12); color: #fca5a5; text-decoration: none; font-size: 11px; font-weight: 800; }
+
+@media (max-width: 620px) {
+    .login-card { padding: 30px 22px; }
+    .user-menu { width: 100%; }
+    .user-details { flex: 1; }
+}

@@ -232,7 +232,108 @@ def init_database():
             (LOCAL_USER_ID,),
         )
 
+        if not column_exists(
+            connection,
+            "users",
+            "google_sub",
+        ):
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN google_sub TEXT"
+            )
+
+        if not column_exists(
+            connection,
+            "users",
+            "profile_picture",
+        ):
+            connection.execute(
+                "ALTER TABLE users ADD COLUMN profile_picture TEXT"
+            )
+
+        connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub "
+            "ON users(google_sub) WHERE google_sub IS NOT NULL"
+        )
+
         connection.commit()
+
+
+def upsert_google_user(
+    google_sub: str,
+    email: str,
+    display_name: str = "",
+    profile_picture: str = "",
+) -> dict:
+    with get_connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE google_sub = ? OR email = ?
+            LIMIT 1
+            """,
+            (google_sub, email),
+        ).fetchone()
+
+        if existing:
+            user_id = int(existing["id"])
+            connection.execute(
+                """
+                UPDATE users
+                SET
+                    google_sub = ?,
+                    email = ?,
+                    display_name = ?,
+                    profile_picture = ?,
+                    is_active = 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    google_sub,
+                    email,
+                    display_name,
+                    profile_picture,
+                    user_id,
+                ),
+            )
+        else:
+            cursor = connection.execute(
+                """
+                INSERT INTO users (
+                    google_sub,
+                    email,
+                    display_name,
+                    profile_picture
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    google_sub,
+                    email,
+                    display_name,
+                    profile_picture,
+                ),
+            )
+            user_id = int(cursor.lastrowid)
+
+        connection.commit()
+
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                email,
+                display_name,
+                profile_picture,
+                plan
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+
+    return dict(row)
 
 
 def email_exists(gmail_id: str) -> bool:

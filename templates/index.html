@@ -34,10 +34,23 @@
                     <span class="nav-count">{{ follow_up_count }}</span>
                 </a>
 
-                <div class="connection-badge">
-                    <span class="connection-dot"></span>
-                    Gmail bağlı
-                </div>
+                {% if current_user %}
+                    <div class="user-menu">
+                        {% if current_user.profile_picture %}
+                            <img
+                                class="user-avatar"
+                                src="{{ current_user.profile_picture }}"
+                                alt="Profil fotoğrafı"
+                                referrerpolicy="no-referrer"
+                            >
+                        {% endif %}
+                        <div class="user-details">
+                            <strong>{{ current_user.display_name or current_user.email }}</strong>
+                            <span>{{ current_user.email }}</span>
+                        </div>
+                        <a class="logout-button" href="{{ url_for('auth.logout') }}">Çıkış</a>
+                    </div>
+                {% endif %}
             </div>
         </header>
 

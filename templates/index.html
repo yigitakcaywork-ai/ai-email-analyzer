@@ -20,13 +20,18 @@
             </div>
 
             <div class="topbar-actions">
-                <a href="/" class="nav-button {% if not show_hidden %}active{% endif %}">
+                <a href="/" class="nav-button {% if not show_hidden and not show_followups %}active{% endif %}">
                     📬 Gelen Kutusu
                 </a>
 
                 <a href="/hidden" class="nav-button {% if show_hidden %}active{% endif %}">
                     🗂️ Gizlenenler
                     <span class="nav-count">{{ hidden_count }}</span>
+                </a>
+
+                <a href="/follow-ups" class="nav-button {% if show_followups %}active{% endif %}">
+                    ⏰ Takiptekiler
+                    <span class="nav-count">{{ follow_up_count }}</span>
                 </a>
 
                 <div class="connection-badge">
@@ -38,7 +43,12 @@
 
         <section class="hero">
             <div class="hero-main glass-card">
-                {% if show_hidden %}
+                {% if show_followups %}
+                    <div class="eyebrow">⏰ Takip ve hatırlatma listesi</div>
+                    <h2>Bekleyen işleri <span>kaçırma.</span></h2>
+                    <p>Takip tarihi gelen, yaklaşan veya geciken e-postaları tek ekranda yönet.</p>
+                    <a href="/" class="back-button">← Ana Panele Dön</a>
+                {% elif show_hidden %}
                     <div class="eyebrow">🗂️ Panelden gizlenen e-postalar</div>
                     <h2>Gizlediğin e-postaları <span>geri getir.</span></h2>
                     <p>
@@ -110,7 +120,7 @@
             </div>
         {% endif %}
 
-        {% if not show_hidden %}
+        {% if not show_hidden and not show_followups %}
             <section class="smart-dashboard" aria-label="Akıllı gelen kutusu özeti">
                 <div class="smart-dashboard-header">
                     <div>
@@ -135,6 +145,8 @@
                             <span>🧹 {{ clutter_count }} temizlenebilir</span>
                             <span>⭐ Ortalama önem {{ average_importance }}/10</span>
                                 <span>📌 {{ favorite_count }} favori</span>
+                            <span>⏰ {{ follow_up_today_count }} bugün takip</span>
+                            <span>⚠️ {{ overdue_follow_up_count }} gecikmiş</span>
                         </div>
                     </article>
 
@@ -193,7 +205,10 @@
         <section>
             <div class="section-header">
                 <div>
-                    {% if show_hidden %}
+                    {% if show_followups %}
+                        <h3>Takip edilecek e-postalar</h3>
+                        <p>Gecikenleri tamamla, yaklaşanların tarihini güncelle.</p>
+                    {% elif show_hidden %}
                         <h3>Gizlenen e-postalar</h3>
                         <p>Mesajı yalnızca panele veya Gmail Gelen Kutusu ile birlikte geri getir.</p>
                     {% else %}
@@ -203,7 +218,9 @@
                 </div>
 
                 <div class="history-badge">
-                    {% if show_hidden %}
+                    {% if show_followups %}
+                        {{ follow_up_count }} aktif takip
+                    {% elif show_hidden %}
                         {{ hidden_count }} gizli kayıt
                     {% else %}
                         {{ total_count }} aktif kayıt
@@ -277,7 +294,7 @@
                     <span>Arama kelimesini değiştir veya filtreleri temizle.</span>
                 </div>
 
-                {% if not show_hidden %}
+                {% if not show_hidden and not show_followups %}
                     <div class="bulk-selection-panel" aria-label="Toplu e-posta işlemleri">
                         <label class="bulk-select-visible">
                             <input id="selectVisibleEmails" type="checkbox">
@@ -346,7 +363,7 @@
                                         {% if result.is_favorite %}★{% else %}☆{% endif %}
                                     </button>
 
-                                    {% if not show_hidden %}
+                                    {% if not show_hidden and not show_followups %}
                                         <label class="email-select-control" title="Bu e-postayı seç">
                                             <input
                                                 class="email-select-checkbox"
@@ -383,6 +400,12 @@
 
                                         {% if result.is_favorite %}
                                             <span class="badge badge-favorite">⭐ Favori</span>
+                                        {% endif %}
+
+                                        {% if result.follow_up_at and not result.follow_up_completed_at %}
+                                            <span class="badge follow-up-badge {{ result.follow_up_status }}">
+                                                ⏰ {{ result.follow_up_label }} · {{ result.follow_up_at }}
+                                            </span>
                                         {% endif %}
 
                                         {% if result.urgency == "Yüksek" %}
@@ -427,6 +450,28 @@
                                                     Bu e-posta için cevap verilmesi gerekmiyor.
                                                 {% endif %}
                                             </div>
+                                        </div>
+
+                                        <div class="follow-up-section">
+                                            <div class="analysis-label">Takip ve Hatırlatma</div>
+                                            <div class="follow-up-controls">
+                                                <select class="follow-up-preset" aria-label="Takip zamanı">
+                                                    <option value="1">Yarın hatırlat</option>
+                                                    <option value="3">3 gün sonra</option>
+                                                    <option value="7">1 hafta sonra</option>
+                                                    <option value="custom">Özel tarih</option>
+                                                </select>
+                                                <input class="follow-up-date" type="date" hidden>
+                                                <button type="button" class="follow-up-set-button" data-gmail-id="{{ result.gmail_id|e }}" onclick="setFollowUp(this)">
+                                                    ⏰ Takibe Ekle
+                                                </button>
+                                                {% if result.follow_up_at and not result.follow_up_completed_at %}
+                                                    <button type="button" class="follow-up-complete-button" data-gmail-id="{{ result.gmail_id|e }}" onclick="completeFollowUp(this)">
+                                                        ✅ Takibi Tamamla
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                            <div class="follow-up-status" hidden></div>
                                         </div>
 
                                         <div class="reply-section">

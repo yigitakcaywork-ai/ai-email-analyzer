@@ -1222,3 +1222,113 @@ document.addEventListener(
     "DOMContentLoaded",
     initializeBulkActions
 );
+
+
+function initializeFollowUpControls() {
+    document.querySelectorAll(".follow-up-section").forEach(section => {
+        const preset = section.querySelector(".follow-up-preset");
+        const dateInput = section.querySelector(".follow-up-date");
+        if (!preset || !dateInput) return;
+
+        const updateVisibility = () => {
+            dateInput.hidden = preset.value !== "custom";
+            if (preset.value === "custom" && !dateInput.value) {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                dateInput.value = tomorrow.toISOString().slice(0, 10);
+            }
+        };
+
+        preset.addEventListener("change", updateVisibility);
+        updateVisibility();
+    });
+}
+
+function formatLocalDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+async function setFollowUp(button) {
+    const section = button.closest(".follow-up-section");
+    const preset = section?.querySelector(".follow-up-preset");
+    const dateInput = section?.querySelector(".follow-up-date");
+    const status = section?.querySelector(".follow-up-status");
+    if (!section || !preset) return;
+
+    let followUpAt = "";
+    if (preset.value === "custom") {
+        followUpAt = dateInput?.value || "";
+    } else {
+        const date = new Date();
+        date.setDate(date.getDate() + Number(preset.value));
+        followUpAt = formatLocalDate(date);
+    }
+
+    if (!followUpAt) {
+        window.alert("Lütfen bir takip tarihi seçin.");
+        return;
+    }
+
+    const originalText = button.textContent.trim();
+    button.disabled = true;
+    button.textContent = "⏳ Kaydediliyor...";
+
+    try {
+        const response = await fetch("/set-follow-up", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                gmail_id: button.dataset.gmailId,
+                follow_up_at: followUpAt
+            })
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Takip eklenemedi.");
+        }
+        if (status) {
+            status.textContent = `✅ ${followUpAt} tarihine takip eklendi.`;
+            status.className = "follow-up-status success";
+            status.hidden = false;
+        }
+        setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+        if (status) {
+            status.textContent = `Hata: ${error.message}`;
+            status.className = "follow-up-status error";
+            status.hidden = false;
+        } else {
+            window.alert(`Hata: ${error.message}`);
+        }
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+async function completeFollowUp(button) {
+    if (!window.confirm("Bu e-postanın takibi tamamlandı olarak işaretlensin mi?")) return;
+    const originalText = button.textContent.trim();
+    button.disabled = true;
+    button.textContent = "⏳ Tamamlanıyor...";
+    try {
+        const response = await fetch("/complete-follow-up", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({gmail_id: button.dataset.gmailId})
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || "Takip tamamlanamadı.");
+        }
+        window.location.reload();
+    } catch (error) {
+        window.alert(`Hata: ${error.message}`);
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", initializeFollowUpControls);

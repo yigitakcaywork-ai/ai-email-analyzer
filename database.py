@@ -50,6 +50,8 @@ def init_database():
                 reply_draft TEXT,
                 is_favorite INTEGER NOT NULL DEFAULT 0,
                 favorited_at TEXT,
+                follow_up_at TEXT,
+                follow_up_completed_at TEXT,
                 is_hidden INTEGER NOT NULL DEFAULT 0,
                 hidden_at TEXT,
                 analyzed_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -115,6 +117,30 @@ def init_database():
                 """
                 ALTER TABLE emails
                 ADD COLUMN favorited_at TEXT
+                """
+            )
+
+        if not column_exists(
+            connection,
+            "emails",
+            "follow_up_at",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE emails
+                ADD COLUMN follow_up_at TEXT
+                """
+            )
+
+        if not column_exists(
+            connection,
+            "emails",
+            "follow_up_completed_at",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE emails
+                ADD COLUMN follow_up_completed_at TEXT
                 """
             )
 
@@ -251,6 +277,8 @@ def get_saved_emails(
             reply_draft,
             is_favorite,
             favorited_at,
+            follow_up_at,
+            follow_up_completed_at,
             is_hidden,
             hidden_at,
             analyzed_at
@@ -314,6 +342,45 @@ def set_email_favorite(
 
     return cursor.rowcount > 0
 
+
+
+def set_email_follow_up(
+    gmail_id: str,
+    follow_up_at: str,
+) -> bool:
+    """E-postaya takip tarihi ekler veya tarihini günceller."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE emails
+            SET
+                follow_up_at = ?,
+                follow_up_completed_at = NULL
+            WHERE gmail_id = ?
+            """,
+            (follow_up_at, gmail_id),
+        )
+        connection.commit()
+
+    return cursor.rowcount > 0
+
+
+def complete_email_follow_up(gmail_id: str) -> bool:
+    """Aktif takibi tamamlar ve geçmiş bilgisini korur."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE emails
+            SET follow_up_completed_at = CURRENT_TIMESTAMP
+            WHERE gmail_id = ?
+              AND follow_up_at IS NOT NULL
+              AND follow_up_completed_at IS NULL
+            """,
+            (gmail_id,),
+        )
+        connection.commit()
+
+    return cursor.rowcount > 0
 
 def hide_email(gmail_id: str) -> bool:
     """

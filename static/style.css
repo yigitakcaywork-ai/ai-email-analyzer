@@ -1283,3 +1283,35 @@ button { border: 0; }
         right: 14px;
     }
 }
+
+
+/* v1.4 Takip ve Hatırlatma */
+.follow-up-section {
+    grid-column: 1 / -1;
+    padding: 16px;
+    border: 1px solid rgba(245, 158, 11, 0.18);
+    border-radius: 16px;
+    background: rgba(120, 53, 15, 0.10);
+}
+.follow-up-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.follow-up-preset, .follow-up-date {
+    min-height: 42px; padding: 0 12px; border: 1px solid rgba(148,163,184,.18);
+    border-radius: 11px; background: rgba(30,41,59,.88); color: #e2e8f0;
+}
+.follow-up-set-button, .follow-up-complete-button {
+    min-height: 42px; padding: 0 14px; border-radius: 11px; cursor: pointer; font-weight: 900;
+}
+.follow-up-set-button { border: 1px solid rgba(245,158,11,.28); background: rgba(146,64,14,.22); color: #fde68a; }
+.follow-up-complete-button { border: 1px solid rgba(34,197,94,.25); background: rgba(20,83,45,.22); color: #86efac; }
+.follow-up-set-button:disabled, .follow-up-complete-button:disabled { opacity: .65; cursor: wait; }
+.follow-up-status { margin-top: 10px; padding: 10px 12px; border-radius: 10px; font-size: 12px; font-weight: 800; }
+.follow-up-status.success { background: rgba(20,83,45,.24); color: #86efac; }
+.follow-up-status.error { background: rgba(127,29,29,.25); color: #fca5a5; }
+.follow-up-badge { border: 1px solid rgba(245,158,11,.22); }
+.follow-up-badge.overdue { background: rgba(127,29,29,.24); color: #fca5a5; }
+.follow-up-badge.today { background: rgba(120,53,15,.26); color: #fde68a; }
+.follow-up-badge.upcoming { background: rgba(30,64,175,.18); color: #93c5fd; }
+@media (max-width:620px) {
+    .follow-up-controls { align-items: stretch; flex-direction: column; }
+    .follow-up-preset, .follow-up-date, .follow-up-set-button, .follow-up-complete-button { width: 100%; }
+}

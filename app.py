@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from flask import Flask, jsonify, render_template, request
 
 from database import (
+    complete_email_follow_up,
     email_exists,
     get_hidden_email_count,
     get_saved_emails,
@@ -13,6 +14,7 @@ from database import (
     save_analyzed_email,
     save_reply_draft,
     set_email_favorite,
+    set_email_follow_up,
 )
 from services.gmail_service import (
     archive_email as archive_gmail_email,
@@ -103,6 +105,7 @@ def group_emails_by_date(
 
 def create_dashboard_data(
     show_hidden: bool = False,
+    show_followups: bool = False,
 ) -> dict:
     all_emails = get_saved_emails(
         limit=400,
@@ -121,13 +124,22 @@ def create_dashboard_data(
         if email.get("is_hidden", False)
     ]
 
+    active_followups = [
+        email
+        for email in all_emails
+        if email.get("follow_up_at")
+        and not email.get("follow_up_completed_at")
+    ]
+
     selected_emails = (
-        hidden_emails
+        active_followups
+        if show_followups
+        else hidden_emails
         if show_hidden
         else visible_emails
     )
 
-    if show_hidden:
+    if show_hidden or show_followups:
         grouped_results = group_emails_by_date(
             selected_emails
         )
@@ -249,6 +261,35 @@ def create_dashboard_data(
         if email.get("category") in clutter_categories
     )
 
+    today_iso = datetime.now(LOCAL_TIMEZONE).date().isoformat()
+    follow_up_count = len(active_followups)
+    follow_up_today_count = sum(
+        1 for email in active_followups
+        if str(email.get("follow_up_at")) == today_iso
+    )
+    overdue_follow_up_count = sum(
+        1 for email in active_followups
+        if str(email.get("follow_up_at")) < today_iso
+    )
+
+    for email in selected_emails:
+        follow_up_at = email.get("follow_up_at")
+        if follow_up_at and not email.get("follow_up_completed_at"):
+            if follow_up_at < today_iso:
+                email["follow_up_status"] = "overdue"
+                email["follow_up_label"] = "Gecikti"
+            elif follow_up_at == today_iso:
+                email["follow_up_status"] = "today"
+                email["follow_up_label"] = "Bugün"
+            else:
+                follow_date = datetime.fromisoformat(follow_up_at).date()
+                days_left = (follow_date - datetime.now(LOCAL_TIMEZONE).date()).days
+                email["follow_up_status"] = "upcoming"
+                email["follow_up_label"] = f"{days_left} gün kaldı"
+        else:
+            email["follow_up_status"] = ""
+            email["follow_up_label"] = ""
+
     inbox_score = max(
         0,
         min(
@@ -256,11 +297,17 @@ def create_dashboard_data(
             100
             - (urgent_count * 12)
             - (reply_needed_count * 6)
-            - (clutter_count * 2),
+            - (clutter_count * 2)
+            - (overdue_follow_up_count * 8),
         ),
     )
 
-    if urgent_count > 0:
+    if overdue_follow_up_count > 0:
+        dashboard_recommendation = (
+            f"{overdue_follow_up_count} takip gecikmiş durumda. "
+            "Önce bu e-postaları tamamla veya tarihlerini güncelle."
+        )
+    elif urgent_count > 0:
         dashboard_recommendation = (
             f"Önce {urgent_count} yüksek aciliyetli e-postayı incele. "
             "Ardından cevap bekleyen mesajlara geç."
@@ -308,15 +355,21 @@ def create_dashboard_data(
         "dashboard_recommendation": dashboard_recommendation,
         "favorite_count": favorite_count,
         "favorite_reply_count": favorite_reply_count,
+        "follow_up_count": follow_up_count,
+        "follow_up_today_count": follow_up_today_count,
+        "overdue_follow_up_count": overdue_follow_up_count,
+        "show_followups": show_followups,
     }
 
 
 def render_dashboard(
     show_hidden: bool = False,
+    show_followups: bool = False,
     **extra_data,
 ):
     dashboard_data = create_dashboard_data(
-        show_hidden=show_hidden
+        show_hidden=show_hidden,
+        show_followups=show_followups,
     )
     dashboard_data.update(extra_data)
 
@@ -367,6 +420,11 @@ def home():
 @app.route("/hidden")
 def hidden_emails_page():
     return render_dashboard(show_hidden=True)
+
+
+@app.route("/follow-ups")
+def follow_ups_page():
+    return render_dashboard(show_followups=True)
 
 
 @app.route("/analyze")
@@ -884,6 +942,74 @@ def toggle_favorite():
             ),
         }
     )
+
+
+@app.route(
+    "/set-follow-up",
+    methods=["POST"],
+)
+def set_follow_up():
+    data = request.get_json(silent=True) or {}
+    gmail_id = str(data.get("gmail_id", "")).strip()
+    follow_up_at = str(data.get("follow_up_at", "")).strip()
+
+    if not gmail_id or not follow_up_at:
+        return jsonify({
+            "success": False,
+            "error": "E-posta ve takip tarihi zorunludur.",
+        }), 400
+
+    try:
+        follow_date = datetime.fromisoformat(follow_up_at).date()
+    except ValueError:
+        return jsonify({
+            "success": False,
+            "error": "Geçersiz takip tarihi.",
+        }), 400
+
+    if follow_date < datetime.now(LOCAL_TIMEZONE).date():
+        return jsonify({
+            "success": False,
+            "error": "Geçmiş bir tarih seçilemez.",
+        }), 400
+
+    updated = set_email_follow_up(gmail_id, follow_date.isoformat())
+    if not updated:
+        return jsonify({
+            "success": False,
+            "error": "E-posta bulunamadı veya takip eklenemedi.",
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "message": "E-posta takip listesine eklendi.",
+        "follow_up_at": follow_date.isoformat(),
+    })
+
+
+@app.route(
+    "/complete-follow-up",
+    methods=["POST"],
+)
+def complete_follow_up():
+    gmail_id = get_gmail_id_from_request()
+    if not gmail_id:
+        return jsonify({
+            "success": False,
+            "error": "Tamamlanacak takip bulunamadı.",
+        }), 400
+
+    completed = complete_email_follow_up(gmail_id)
+    if not completed:
+        return jsonify({
+            "success": False,
+            "error": "Aktif takip bulunamadı.",
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "message": "Takip tamamlandı.",
+    })
 
 
 @app.route(

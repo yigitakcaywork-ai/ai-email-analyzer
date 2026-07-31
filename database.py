@@ -4,6 +4,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = BASE_DIR / "email_analyzer.db"
+LOCAL_USER_ID = 1
+LOCAL_USER_EMAIL = "local-user@ai-email-analyzer.local"
 
 
 def get_connection():
@@ -32,8 +34,59 @@ def init_database():
     with get_connection() as connection:
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                display_name TEXT,
+                plan TEXT NOT NULL DEFAULT 'free',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO users (
+                id,
+                email,
+                display_name,
+                plan
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                LOCAL_USER_ID,
+                LOCAL_USER_EMAIL,
+                "Yerel Geliştirme Kullanıcısı",
+                "development",
+            ),
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gmail_connections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL UNIQUE,
+                gmail_address TEXT,
+                encrypted_access_token TEXT,
+                encrypted_refresh_token TEXT,
+                token_expiry TEXT,
+                scopes TEXT,
+                connected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS emails (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL DEFAULT 1,
                 gmail_id TEXT NOT NULL UNIQUE,
                 thread_id TEXT,
                 sender TEXT,
@@ -62,6 +115,7 @@ def init_database():
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS app_settings (
+                user_id INTEGER NOT NULL DEFAULT 1,
                 setting_key TEXT PRIMARY KEY,
                 setting_value TEXT
             )
@@ -143,6 +197,40 @@ def init_database():
                 ADD COLUMN follow_up_completed_at TEXT
                 """
             )
+
+        if not column_exists(
+            connection,
+            "emails",
+            "user_id",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE emails
+                ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1
+                """
+            )
+
+        if not column_exists(
+            connection,
+            "app_settings",
+            "user_id",
+        ):
+            connection.execute(
+                """
+                ALTER TABLE app_settings
+                ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1
+                """
+            )
+
+        connection.execute(
+            "UPDATE emails SET user_id = ? WHERE user_id IS NULL",
+            (LOCAL_USER_ID,),
+        )
+
+        connection.execute(
+            "UPDATE app_settings SET user_id = ? WHERE user_id IS NULL",
+            (LOCAL_USER_ID,),
+        )
 
         connection.commit()
 

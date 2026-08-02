@@ -1392,3 +1392,39 @@ button { border: 0; }
     .user-menu { width: 100%; }
     .user-details { flex: 1; }
 }
+
+
+.gmail-account-notice {
+    align-items: center;
+}
+
+.gmail-disconnect-form {
+    margin-left: auto;
+}
+
+.gmail-disconnect-button {
+    padding: 9px 13px;
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    border-radius: 10px;
+    background: rgba(127, 29, 29, 0.2);
+    color: #fca5a5;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.gmail-disconnect-button:hover {
+    background: rgba(127, 29, 29, 0.32);
+}
+
+@media (max-width: 620px) {
+    .gmail-account-notice {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .gmail-disconnect-form,
+    .gmail-disconnect-button {
+        width: 100%;
+        margin-left: 0;
+    }
+}

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from database import (
     complete_email_follow_up,
@@ -42,7 +42,7 @@ def set_follow_up():
             "error": "Geçmiş bir tarih seçilemez.",
         }), 400
 
-    updated = set_email_follow_up(gmail_id, follow_date.isoformat())
+    updated = set_email_follow_up(int(session["user_id"]), gmail_id, follow_date.isoformat())
     if not updated:
         return jsonify({
             "success": False,
@@ -67,7 +67,7 @@ def complete_follow_up():
             "error": "Tamamlanacak takip bulunamadı.",
         }), 400
 
-    completed = complete_email_follow_up(gmail_id)
+    completed = complete_email_follow_up(int(session["user_id"]), gmail_id)
     if not completed:
         return jsonify({
             "success": False,

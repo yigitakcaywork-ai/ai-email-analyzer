@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from database import save_reply_draft
 from services.gmail_service import create_gmail_draft
@@ -89,6 +89,7 @@ def create_reply():
 
         if gmail_id:
             save_reply_draft(
+                user_id=int(session["user_id"]),
                 gmail_id=gmail_id,
                 reply_draft=reply,
             )
@@ -152,6 +153,7 @@ def save_reply_as_gmail_draft():
 
     try:
         draft = create_gmail_draft(
+            user_id=int(session["user_id"]),
             sender=sender,
             subject=subject,
             reply_text=reply_text,
@@ -177,7 +179,7 @@ def save_reply_as_gmail_draft():
             status_code = 403
             clean_message = (
                 "Gmail taslak oluşturma izni bulunamadı. "
-                "token.json dosyasını yenileyip Google iznini tekrar onaylayın."
+                "Gmail hesabınızı yeniden bağlayıp izinleri tekrar onaylayın."
             )
         else:
             status_code = 500

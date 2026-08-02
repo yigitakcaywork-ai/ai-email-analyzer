@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, session
 
 from database import (
     email_exists,
     get_saved_emails,
     save_analyzed_email,
+    get_gmail_connection,
 )
 from services.gmail_service import get_recent_emails
 from services.gemini_service import analyze_emails
@@ -66,10 +67,12 @@ def group_emails_by_date(
     return list(grouped_emails.values())
 
 def create_dashboard_data(
+    user_id: int,
     show_hidden: bool = False,
     show_followups: bool = False,
 ) -> dict:
     all_emails = get_saved_emails(
+        user_id=user_id,
         limit=400,
         include_hidden=True,
     )
@@ -321,6 +324,8 @@ def create_dashboard_data(
         "follow_up_today_count": follow_up_today_count,
         "overdue_follow_up_count": overdue_follow_up_count,
         "show_followups": show_followups,
+        "gmail_connection": get_gmail_connection(user_id),
+        "gmail_connected": get_gmail_connection(user_id) is not None,
     }
 
 def render_dashboard(
@@ -328,11 +333,20 @@ def render_dashboard(
     show_followups: bool = False,
     **extra_data,
 ):
+    user_id = int(session["user_id"])
     dashboard_data = create_dashboard_data(
+        user_id=user_id,
         show_hidden=show_hidden,
         show_followups=show_followups,
     )
     dashboard_data.update(extra_data)
+
+    if request.args.get("gmail_connected"):
+        dashboard_data["status_message"] = "Gmail hesabı başarıyla bağlandı."
+    if request.args.get("gmail_disconnected"):
+        dashboard_data["status_message"] = "Gmail bağlantısı kaldırıldı."
+    if request.args.get("gmail_error"):
+        dashboard_data["error"] = request.args.get("gmail_error")
 
     return render_template(
         "index.html",
@@ -354,7 +368,9 @@ def follow_ups_page():
 @dashboard_bp.route("/analyze")
 def analyze():
     try:
+        user_id = int(session["user_id"])
         gmail_emails = get_recent_emails(
+            user_id=user_id,
             max_results=GMAIL_SCAN_LIMIT,
         )
 
@@ -362,7 +378,7 @@ def analyze():
             email
             for email in gmail_emails
             if email.get("gmail_id")
-            and not email_exists(email["gmail_id"])
+            and not email_exists(user_id, email["gmail_id"])
         ]
 
         new_emails.sort(
@@ -386,6 +402,7 @@ def analyze():
                 analyses,
             ):
                 save_analyzed_email(
+                    user_id=user_id,
                     email=email,
                     analysis=analysis,
                 )

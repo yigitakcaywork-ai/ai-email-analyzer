@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from database import (
     get_hidden_email_count,
@@ -64,7 +64,8 @@ def hide_email_from_dashboard():
             }
         ), 400
 
-    hidden = hide_email(gmail_id)
+    user_id = int(session["user_id"])
+    hidden = hide_email(user_id, gmail_id)
 
     if not hidden:
         return jsonify(
@@ -84,7 +85,7 @@ def hide_email_from_dashboard():
                 "E-posta panelden gizlendi. "
                 "Gmail hesabındaki mesaja dokunulmadı."
             ),
-            "hidden_count": get_hidden_email_count(),
+            "hidden_count": get_hidden_email_count(user_id),
         }
     )
 
@@ -110,7 +111,8 @@ def restore_email_to_dashboard():
             }
         ), 400
 
-    restored = restore_email(gmail_id)
+    user_id = int(session["user_id"])
+    restored = restore_email(user_id, gmail_id)
 
     if not restored:
         return jsonify(
@@ -130,7 +132,7 @@ def restore_email_to_dashboard():
                 "E-posta yalnızca dashboard'a "
                 "geri getirildi."
             ),
-            "hidden_count": get_hidden_email_count(),
+            "hidden_count": get_hidden_email_count(user_id),
         }
     )
 
@@ -156,8 +158,9 @@ def archive_email_in_gmail():
         ), 400
 
     try:
-        archive_gmail_email(gmail_id)
-        panel_hidden = hide_email(gmail_id)
+        user_id = int(session["user_id"])
+        archive_gmail_email(user_id, gmail_id)
+        panel_hidden = hide_email(user_id, gmail_id)
 
         message = (
             "E-posta Gmail'de arşivlendi ve "
@@ -174,7 +177,7 @@ def archive_email_in_gmail():
             {
                 "success": True,
                 "message": message,
-                "hidden_count": get_hidden_email_count(),
+                "hidden_count": get_hidden_email_count(user_id),
             }
         )
 
@@ -190,7 +193,7 @@ def archive_email_in_gmail():
             status_code = 403
             clean_message = (
                 "Gmail arşivleme izni bulunamadı. "
-                "token.json dosyasını yenileyip "
+                "Gmail hesabınızı yeniden bağlayıp "
                 "Google iznini tekrar onaylayın."
             )
         else:
@@ -230,8 +233,9 @@ def restore_email_to_gmail_inbox():
         ), 400
 
     try:
-        move_email_to_inbox(gmail_id)
-        panel_restored = restore_email(gmail_id)
+        user_id = int(session["user_id"])
+        move_email_to_inbox(user_id, gmail_id)
+        panel_restored = restore_email(user_id, gmail_id)
 
         message = (
             "E-posta Gmail Gelen Kutusu'na ve "
@@ -249,7 +253,7 @@ def restore_email_to_gmail_inbox():
             {
                 "success": True,
                 "message": message,
-                "hidden_count": get_hidden_email_count(),
+                "hidden_count": get_hidden_email_count(user_id),
             }
         )
 
@@ -265,7 +269,7 @@ def restore_email_to_gmail_inbox():
             status_code = 403
             clean_message = (
                 "Gmail değiştirme izni bulunamadı. "
-                "token.json dosyasını yenileyip "
+                "Gmail hesabınızı yeniden bağlayıp "
                 "Google iznini tekrar onaylayın."
             )
         else:
@@ -299,7 +303,9 @@ def toggle_favorite():
             }
         ), 400
 
+    user_id = int(session["user_id"])
     updated = set_email_favorite(
+        user_id=user_id,
         gmail_id=gmail_id,
         is_favorite=is_favorite,
     )
@@ -337,12 +343,13 @@ def bulk_hide_emails():
             "error": "Gizlenecek e-posta seçilmedi.",
         }), 400
 
+    user_id = int(session["user_id"])
     completed_ids = []
     failed_items = []
 
     for gmail_id in gmail_ids:
         try:
-            if hide_email(gmail_id):
+            if hide_email(user_id, gmail_id):
                 completed_ids.append(gmail_id)
             else:
                 failed_items.append({
@@ -364,7 +371,7 @@ def bulk_hide_emails():
         "message": (
             f"{len(completed_ids)} e-posta panelden gizlendi."
         ),
-        "hidden_count": get_hidden_email_count(),
+        "hidden_count": get_hidden_email_count(user_id),
     }), 200 if completed_ids else 500
 
 @gmail_actions_bp.route(
@@ -380,14 +387,15 @@ def bulk_archive_emails():
             "error": "Arşivlenecek e-posta seçilmedi.",
         }), 400
 
+    user_id = int(session["user_id"])
     completed_ids = []
     failed_items = []
 
     for gmail_id in gmail_ids:
         try:
-            archive_gmail_email(gmail_id)
+            archive_gmail_email(user_id, gmail_id)
 
-            if not hide_email(gmail_id):
+            if not hide_email(user_id, gmail_id):
                 raise RuntimeError(
                     "Gmail'de arşivlendi ancak panel kaydı gizlenemedi."
                 )
@@ -410,6 +418,6 @@ def bulk_archive_emails():
             f"{len(completed_ids)} e-posta Gmail'de arşivlendi "
             "ve panelden gizlendi."
         ),
-        "hidden_count": get_hidden_email_count(),
+        "hidden_count": get_hidden_email_count(user_id),
     }), 200 if completed_ids else 500
 

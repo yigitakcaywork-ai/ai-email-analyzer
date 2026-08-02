@@ -34,6 +34,17 @@
                     <span class="nav-count">{{ follow_up_count }}</span>
                 </a>
 
+                {% if gmail_connected %}
+                    <div class="connection-badge" title="{{ gmail_connection.gmail_address }}">
+                        <span class="connection-dot"></span>
+                        Gmail bağlı
+                    </div>
+                {% else %}
+                    <a class="nav-button gmail-connect-button" href="{{ url_for('gmail_connection.gmail_connect') }}">
+                        🔗 Gmail'i Bağla
+                    </a>
+                {% endif %}
+
                 {% if current_user %}
                     <div class="user-menu">
                         {% if current_user.profile_picture %}
@@ -76,7 +87,11 @@
                         Yeni mesajlarını analiz et, AI cevap taslağı oluştur,
                         işlemi tamamlananları panelden gizle veya Gmail’de arşivle.
                     </p>
-                    <a href="/analyze" class="analyze-button">🔄 Yeni E-postaları Tara</a>
+                    {% if gmail_connected %}
+                        <a href="/analyze" class="analyze-button">🔄 Yeni E-postaları Tara</a>
+                    {% else %}
+                        <a href="{{ url_for('gmail_connection.gmail_connect') }}" class="analyze-button">🔗 Gmail Hesabını Bağla</a>
+                    {% endif %}
                 {% endif %}
             </div>
 
@@ -106,6 +121,29 @@
                 </div>
             </div>
         </section>
+
+        {% if gmail_connected %}
+            <div class="notice notice-success gmail-account-notice">
+                <div class="notice-icon">📧</div>
+                <div>
+                    <strong>Gmail hesabı bağlı</strong>
+                    <div>{{ gmail_connection.gmail_address }}</div>
+                </div>
+                <form method="post" action="{{ url_for('gmail_connection.gmail_disconnect') }}" class="gmail-disconnect-form">
+                    <button type="submit" class="gmail-disconnect-button" onclick="return confirm('Gmail bağlantısı kaldırılsın mı?');">
+                        Bağlantıyı Kaldır
+                    </button>
+                </form>
+            </div>
+        {% else %}
+            <div class="notice notice-warning">
+                <div class="notice-icon">🔗</div>
+                <div>
+                    <strong>Gmail hesabını bağla</strong>
+                    <div>E-postalarını analiz etmek ve Gmail işlemlerini kullanmak için bir kez izin ver.</div>
+                </div>
+            </div>
+        {% endif %}
 
         {% if status_message %}
             <div class="notice notice-success">

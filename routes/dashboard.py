@@ -8,6 +8,11 @@ from database import (
     get_saved_emails,
     save_analyzed_email,
     get_gmail_connection,
+    get_learning_suggestions,
+    get_today_behavior_counts,
+    get_today_analyzed_count,
+    get_recent_worker_events,
+    record_behavior,
 )
 from services.gmail_service import get_recent_emails
 from services.gemini_service import analyze_emails
@@ -303,6 +308,44 @@ def create_dashboard_data(
         and email.get("reply_needed")
     )
 
+    behavior_counts = get_today_behavior_counts(user_id)
+    analyzed_today_count = get_today_analyzed_count(user_id)
+    worker_events = get_recent_worker_events(user_id, limit=10)
+    learning_suggestions = get_learning_suggestions(user_id)
+    automated_count = behavior_counts.get("automation", 0)
+    completed_action_count = sum(
+        behavior_counts.get(action, 0)
+        for action in ("archive", "hide", "favorite", "follow_up", "gmail_draft_created")
+    )
+
+    worker_summary = (
+        f"Bugün {analyzed_today_count} e-posta analiz ettim. "
+        f"{urgent_count} acil, {reply_needed_count} cevap bekleyen ve "
+        f"{clutter_count} temizlenebilir e-posta tespit ettim."
+    )
+
+    if overdue_follow_up_count > 0:
+        worker_next_step = f"Önce geciken {overdue_follow_up_count} takibi tamamla."
+    elif urgent_count > 0:
+        worker_next_step = f"Önce {urgent_count} acil e-postayı incele."
+    elif reply_needed_count > 0:
+        worker_next_step = f"Cevap bekleyen {reply_needed_count} e-posta için taslak hazırla."
+    elif clutter_count > 0:
+        worker_next_step = f"{clutter_count} düşük öncelikli e-postayı temizleyebilirsin."
+    else:
+        worker_next_step = "Gelen kutun kontrol altında. Yeni e-postaları tarayarak güncel kal."
+
+    ai_worker_report = {
+        "summary": worker_summary,
+        "next_step": worker_next_step,
+        "analyzed_today": analyzed_today_count,
+        "urgent": urgent_count,
+        "reply_needed": reply_needed_count,
+        "cleanable": clutter_count,
+        "completed_actions": completed_action_count,
+        "automated": automated_count,
+    }
+
     return {
         "results": selected_emails,
         "grouped_results": grouped_results,
@@ -326,6 +369,10 @@ def create_dashboard_data(
         "show_followups": show_followups,
         "gmail_connection": get_gmail_connection(user_id),
         "gmail_connected": get_gmail_connection(user_id) is not None,
+        "ai_worker_report": ai_worker_report,
+        "behavior_counts": behavior_counts,
+        "learning_suggestions": learning_suggestions,
+        "worker_events": worker_events,
     }
 
 def render_dashboard(
@@ -406,6 +453,29 @@ def analyze():
                     email=email,
                     analysis=analysis,
                 )
+
+            scan_urgent_count = sum(
+                1 for analysis in analyses
+                if analysis.get("urgency") == "Yüksek"
+            )
+            scan_reply_count = sum(
+                1 for analysis in analyses
+                if bool(analysis.get("reply_needed"))
+            )
+            scan_cleanable_count = sum(
+                1 for analysis in analyses
+                if analysis.get("category") in {"Reklam", "Bildirim", "Sosyal"}
+            )
+            record_behavior(
+                user_id=user_id,
+                action_type="scan_completed",
+                metadata={
+                    "analyzed_count": len(emails_to_analyze),
+                    "urgent_count": scan_urgent_count,
+                    "reply_needed_count": scan_reply_count,
+                    "cleanable_count": scan_cleanable_count,
+                },
+            )
 
             status_message = (
                 f"{len(emails_to_analyze)} yeni "

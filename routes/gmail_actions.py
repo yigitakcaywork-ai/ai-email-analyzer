@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 
 from database import (
+    record_behavior,
     get_hidden_email_count,
     hide_email,
     restore_email,
@@ -66,6 +67,8 @@ def hide_email_from_dashboard():
 
     user_id = int(session["user_id"])
     hidden = hide_email(user_id, gmail_id)
+    if hidden:
+        record_behavior(user_id, "hide", gmail_id)
 
     if not hidden:
         return jsonify(
@@ -161,6 +164,8 @@ def archive_email_in_gmail():
         user_id = int(session["user_id"])
         archive_gmail_email(user_id, gmail_id)
         panel_hidden = hide_email(user_id, gmail_id)
+        if panel_hidden:
+            record_behavior(user_id, "archive", gmail_id)
 
         message = (
             "E-posta Gmail'de arşivlendi ve "
@@ -318,6 +323,9 @@ def toggle_favorite():
             }
         ), 404
 
+    if is_favorite:
+        record_behavior(user_id, "favorite", gmail_id)
+
     return jsonify(
         {
             "success": True,
@@ -350,6 +358,7 @@ def bulk_hide_emails():
     for gmail_id in gmail_ids:
         try:
             if hide_email(user_id, gmail_id):
+                record_behavior(user_id, "hide", gmail_id, {"bulk": True})
                 completed_ids.append(gmail_id)
             else:
                 failed_items.append({
@@ -400,6 +409,7 @@ def bulk_archive_emails():
                     "Gmail'de arşivlendi ancak panel kaydı gizlenemedi."
                 )
 
+            record_behavior(user_id, "archive", gmail_id, {"bulk": True})
             completed_ids.append(gmail_id)
 
         except Exception as error:

@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request, session
 
 from database import (
     complete_email_follow_up,
+    record_behavior,
     set_email_follow_up,
 )
 from .dashboard import LOCAL_TIMEZONE
@@ -42,12 +43,15 @@ def set_follow_up():
             "error": "Geçmiş bir tarih seçilemez.",
         }), 400
 
-    updated = set_email_follow_up(int(session["user_id"]), gmail_id, follow_date.isoformat())
+    user_id = int(session["user_id"])
+    updated = set_email_follow_up(user_id, gmail_id, follow_date.isoformat())
     if not updated:
         return jsonify({
             "success": False,
             "error": "E-posta bulunamadı veya takip eklenemedi.",
         }), 404
+
+    record_behavior(user_id, "follow_up", gmail_id, {"follow_up_at": follow_date.isoformat()})
 
     return jsonify({
         "success": True,

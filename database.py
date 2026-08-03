@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 
@@ -205,6 +206,30 @@ def init_database():
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
             """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS behavior_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                gmail_id TEXT,
+                action_type TEXT NOT NULL,
+                sender TEXT,
+                category TEXT,
+                metadata_json TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_behavior_user_created "
+            "ON behavior_logs(user_id, created_at)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_behavior_user_sender_action "
+            "ON behavior_logs(user_id, sender, action_type)"
         )
 
         _migrate_emails_table(connection)
@@ -505,3 +530,194 @@ def save_setting(user_id: int, setting_key: str, setting_value: str):
             (user_id, setting_key, setting_value),
         )
         connection.commit()
+
+
+
+def record_behavior(
+    user_id: int,
+    action_type: str,
+    gmail_id: str = "",
+    metadata: dict | None = None,
+) -> None:
+    """Kullanıcının e-posta üzerindeki davranışını kaydeder."""
+    clean_action = str(action_type or "").strip().lower()
+    clean_gmail_id = str(gmail_id or "").strip()
+    if not clean_action:
+        return
+
+    sender = ""
+    category = ""
+    with get_connection() as connection:
+        if clean_gmail_id:
+            email_row = connection.execute(
+                """
+                SELECT sender, category
+                FROM emails
+                WHERE user_id = ? AND gmail_id = ?
+                LIMIT 1
+                """,
+                (user_id, clean_gmail_id),
+            ).fetchone()
+            if email_row:
+                sender = str(email_row["sender"] or "").strip()
+                category = str(email_row["category"] or "").strip()
+
+        connection.execute(
+            """
+            INSERT INTO behavior_logs (
+                user_id, gmail_id, action_type, sender, category, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                clean_gmail_id or None,
+                clean_action,
+                sender or None,
+                category or None,
+                json.dumps(metadata or {}, ensure_ascii=False),
+            ),
+        )
+        connection.commit()
+
+
+def get_today_behavior_counts(user_id: int) -> dict:
+    """Bugün gerçekleştirilen kullanıcı işlemlerinin sayılarını döndürür."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT action_type, COUNT(*) AS total
+            FROM behavior_logs
+            WHERE user_id = ?
+              AND date(created_at, 'localtime') = date('now', 'localtime')
+            GROUP BY action_type
+            """,
+            (user_id,),
+        ).fetchall()
+    return {str(row["action_type"]): int(row["total"]) for row in rows}
+
+
+def get_today_analyzed_count(user_id: int) -> int:
+    """Bugün gerçekten analiz edilen e-posta sayısını döndürür."""
+    with get_connection() as connection:
+        result = connection.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM emails
+            WHERE user_id = ?
+              AND date(analyzed_at, 'localtime') = date('now', 'localtime')
+            """,
+            (user_id,),
+        ).fetchone()
+    return int(result["total"] or 0)
+
+
+def get_recent_worker_events(user_id: int, limit: int = 10) -> list[dict]:
+    """Bugünkü AI çalışan ve kullanıcı işlem günlüğünü hazırlar."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT action_type, sender, metadata_json,
+                   strftime('%H:%M', created_at, 'localtime') AS event_time
+            FROM behavior_logs
+            WHERE user_id = ?
+              AND date(created_at, 'localtime') = date('now', 'localtime')
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, max(1, min(int(limit), 30))),
+        ).fetchall()
+
+    events = []
+    for row in rows:
+        action = str(row["action_type"] or "")
+        sender = str(row["sender"] or "").strip()
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            metadata = {}
+
+        if action == "scan_completed":
+            count = int(metadata.get("analyzed_count", 0) or 0)
+            urgent = int(metadata.get("urgent_count", 0) or 0)
+            reply = int(metadata.get("reply_needed_count", 0) or 0)
+            cleanable = int(metadata.get("cleanable_count", 0) or 0)
+            message = (
+                f"{count} yeni e-posta analiz edildi; "
+                f"{urgent} acil, {reply} cevap bekleyen ve "
+                f"{cleanable} temizlenebilir mesaj bulundu."
+            )
+            icon = "🔎"
+        elif action == "archive":
+            message = f"{sender or 'Bir e-posta'} Gmail’de arşivlendi."
+            icon = "📥"
+        elif action == "hide":
+            message = f"{sender or 'Bir e-posta'} panelden gizlendi."
+            icon = "🧹"
+        elif action == "favorite":
+            message = f"{sender or 'Bir e-posta'} favorilere eklendi."
+            icon = "⭐"
+        elif action == "follow_up":
+            message = f"{sender or 'Bir e-posta'} takip listesine eklendi."
+            icon = "⏰"
+        elif action == "reply_generated":
+            message = f"{sender or 'Bir e-posta'} için AI cevap taslağı oluşturuldu."
+            icon = "✍️"
+        elif action == "gmail_draft_created":
+            recipient = str(metadata.get("recipient", "") or "").strip()
+            message = f"{recipient or sender or 'Bir alıcı'} için Gmail taslağı kaydedildi."
+            icon = "📨"
+        elif action == "automation":
+            message = str(metadata.get("message", "Otomatik işlem tamamlandı."))
+            icon = "🤖"
+        else:
+            continue
+
+        events.append({
+            "time": str(row["event_time"] or "--:--"),
+            "icon": icon,
+            "message": message,
+            "action_type": action,
+        })
+
+    return events
+
+
+def get_learning_suggestions(user_id: int, minimum_actions: int = 3) -> list[dict]:
+    """Tekrarlanan gönderici davranışlarından güvenli otomasyon önerileri üretir."""
+    supported_actions = ("archive", "hide", "favorite")
+    placeholders = ",".join("?" for _ in supported_actions)
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"""
+            SELECT sender, action_type, COUNT(*) AS total
+            FROM behavior_logs
+            WHERE user_id = ?
+              AND sender IS NOT NULL
+              AND trim(sender) <> ''
+              AND action_type IN ({placeholders})
+            GROUP BY sender, action_type
+            HAVING COUNT(*) >= ?
+            ORDER BY total DESC, sender ASC
+            LIMIT 5
+            """,
+            (user_id, *supported_actions, minimum_actions),
+        ).fetchall()
+
+    labels = {
+        "archive": "arşivliyorsun",
+        "hide": "panelden gizliyorsun",
+        "favorite": "favoriye alıyorsun",
+    }
+    suggestions = []
+    for row in rows:
+        action = str(row["action_type"])
+        sender = str(row["sender"])
+        total = int(row["total"])
+        suggestions.append({
+            "sender": sender,
+            "action_type": action,
+            "count": total,
+            "message": f"{sender} göndericisindeki e-postaları {total} kez {labels[action]}.",
+        })
+    return suggestions

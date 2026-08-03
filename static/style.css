@@ -1428,3 +1428,127 @@ button { border: 0; }
         margin-left: 0;
     }
 }
+
+
+/* v1.6 AI Worker Foundation */
+.ai-worker-panel {
+    margin: 28px 0;
+    padding: 26px;
+    border: 1px solid rgba(124, 92, 255, 0.35);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(28, 36, 65, 0.96), rgba(17, 25, 46, 0.98));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+.ai-worker-header,
+.ai-learning-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+}
+.ai-worker-header h3 { margin: 8px 0 0; font-size: 1.55rem; }
+.ai-worker-eyebrow,
+.ai-learning-title { color: #a98cff; font-weight: 800; letter-spacing: .08em; font-size: .78rem; }
+.ai-worker-status {
+    padding: 9px 13px;
+    border-radius: 999px;
+    color: #6dffb4;
+    background: rgba(25, 166, 104, .15);
+    border: 1px solid rgba(45, 214, 135, .28);
+    font-weight: 700;
+}
+.ai-worker-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; margin-top: 22px; }
+.ai-worker-brief,
+.ai-worker-metrics,
+.ai-learning-section,
+.ai-learning-empty {
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.035);
+    border-radius: 18px;
+}
+.ai-worker-brief { padding: 22px; }
+.ai-worker-brief > p { margin: 0; font-size: 1.08rem; line-height: 1.7; color: #edf1ff; }
+.ai-worker-next-step { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.08); display: grid; gap: 6px; }
+.ai-worker-next-step strong { color: #8db3ff; font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; }
+.ai-worker-metrics { padding: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ai-worker-metrics div { min-height: 82px; padding: 13px; border-radius: 14px; background: rgba(8, 15, 31, .4); display: flex; flex-direction: column; justify-content: center; }
+.ai-worker-metrics strong { font-size: 1.45rem; }
+.ai-worker-metrics span { margin-top: 4px; color: #8f9bb5; font-size: .76rem; }
+.ai-learning-section,
+.ai-learning-empty { margin-top: 18px; padding: 18px; }
+.ai-learning-title { margin-bottom: 10px; }
+.ai-learning-row { padding: 12px 0; border-top: 1px solid rgba(255,255,255,.07); }
+.ai-learning-row div { display: grid; gap: 4px; }
+.ai-learning-row span { color: #9ea9c0; }
+.ai-learning-badge { white-space: nowrap; padding: 7px 10px; border-radius: 999px; background: rgba(124,92,255,.14); color: #c6b7ff !important; }
+.ai-learning-empty { color: #9ea9c0; }
+@media (max-width: 900px) {
+    .ai-worker-grid { grid-template-columns: 1fr; }
+    .ai-worker-metrics { grid-template-columns: repeat(2, 1fr); }
+    .ai-worker-header { align-items: flex-start; }
+}
+
+
+/* v1.6.1 Accurate Worker Report + Worker Log */
+.ai-worker-log {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    background: rgba(8, 15, 31, .25);
+}
+.ai-worker-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.ai-worker-log-header p {
+    margin: 6px 0 0;
+    color: #8f9bb5;
+    font-size: .86rem;
+}
+.ai-worker-log-count {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(124,92,255,.14);
+    color: #c6b7ff;
+    font-size: .76rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.ai-worker-timeline {
+    display: grid;
+}
+.ai-worker-event {
+    display: grid;
+    grid-template-columns: 52px 30px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 0;
+    border-top: 1px solid rgba(255,255,255,.065);
+    color: #dbe4f7;
+    line-height: 1.45;
+}
+.ai-worker-event time {
+    color: #7f8ba5;
+    font-size: .78rem;
+    font-variant-numeric: tabular-nums;
+}
+.ai-worker-event-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(124,92,255,.1);
+}
+.ai-worker-log-empty {
+    padding: 14px 0 2px;
+    color: #9ea9c0;
+}
+@media (max-width: 620px) {
+    .ai-worker-log-header { flex-direction: column; }
+    .ai-worker-event { grid-template-columns: 44px 28px 1fr; font-size: .9rem; }
+}

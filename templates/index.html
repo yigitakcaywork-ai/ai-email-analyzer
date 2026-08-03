@@ -172,6 +172,80 @@
         {% endif %}
 
         {% if not show_hidden and not show_followups %}
+            <section class="ai-worker-panel" aria-label="AI çalışan raporu">
+                <div class="ai-worker-header">
+                    <div>
+                        <span class="ai-worker-eyebrow">🧠 AI ÇALIŞAN RAPORU</span>
+                        <h3>Bugünkü gelen kutusu brifingin</h3>
+                    </div>
+                    <span class="ai-worker-status">● Öğreniyor</span>
+                </div>
+
+                <div class="ai-worker-grid">
+                    <article class="ai-worker-brief">
+                        <p>{{ ai_worker_report.summary }}</p>
+                        <div class="ai-worker-next-step">
+                            <strong>Önerilen sonraki adım</strong>
+                            <span>{{ ai_worker_report.next_step }}</span>
+                        </div>
+                    </article>
+
+                    <div class="ai-worker-metrics">
+                        <div><strong>{{ ai_worker_report.analyzed_today }}</strong><span>Bugün incelendi</span></div>
+                        <div><strong>{{ ai_worker_report.urgent }}</strong><span>Acil</span></div>
+                        <div><strong>{{ ai_worker_report.reply_needed }}</strong><span>Cevap bekliyor</span></div>
+                        <div><strong>{{ ai_worker_report.cleanable }}</strong><span>Temizlenebilir</span></div>
+                        <div><strong>{{ ai_worker_report.completed_actions }}</strong><span>Bugünkü işlemin</span></div>
+                        <div><strong>{{ ai_worker_report.automated }}</strong><span>Otomatik işlendi</span></div>
+                    </div>
+                </div>
+
+                <div class="ai-worker-log">
+                    <div class="ai-worker-log-header">
+                        <div>
+                            <span class="ai-learning-title">AI ÇALIŞAN GÜNLÜĞÜ</span>
+                            <p>Bugün gelen kutunda yapılan son işlemler</p>
+                        </div>
+                        <span class="ai-worker-log-count">{{ worker_events|length }} kayıt</span>
+                    </div>
+
+                    {% if worker_events %}
+                        <div class="ai-worker-timeline">
+                            {% for event in worker_events %}
+                                <div class="ai-worker-event">
+                                    <time>{{ event.time }}</time>
+                                    <span class="ai-worker-event-icon">{{ event.icon }}</span>
+                                    <span>{{ event.message }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="ai-worker-log-empty">
+                            Bugün henüz kayıtlı bir işlem yok. Yeni e-postaları taradığında günlük burada oluşacak.
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if learning_suggestions %}
+                    <div class="ai-learning-section">
+                        <div class="ai-learning-title">ÖĞRENİLEN DAVRANIŞLAR</div>
+                        {% for suggestion in learning_suggestions %}
+                            <div class="ai-learning-row">
+                                <div>
+                                    <strong>{{ suggestion.sender }}</strong>
+                                    <span>{{ suggestion.message }}</span>
+                                </div>
+                                <span class="ai-learning-badge">{{ suggestion.count }} işlem</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="ai-learning-empty">
+                        İşlemlerini gözlemliyorum. Aynı göndericide 3 benzer işlemden sonra otomasyon önerisi sunacağım.
+                    </div>
+                {% endif %}
+            </section>
+
             <section class="smart-dashboard" aria-label="Akıllı gelen kutusu özeti">
                 <div class="smart-dashboard-header">
                     <div>

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, session
 
-from database import save_reply_draft
+from database import record_behavior, save_reply_draft
 from services.gmail_service import create_gmail_draft
 from services.gemini_service import generate_reply
 
@@ -88,11 +88,13 @@ def create_reply():
         )
 
         if gmail_id:
+            user_id = int(session["user_id"])
             save_reply_draft(
-                user_id=int(session["user_id"]),
+                user_id=user_id,
                 gmail_id=gmail_id,
                 reply_draft=reply,
             )
+            record_behavior(user_id, "reply_generated", gmail_id, {"tone": tone})
 
         return jsonify(
             {
@@ -152,13 +154,16 @@ def save_reply_as_gmail_draft():
         }), 400
 
     try:
+        user_id = int(session["user_id"])
         draft = create_gmail_draft(
-            user_id=int(session["user_id"]),
+            user_id=user_id,
             sender=sender,
             subject=subject,
             reply_text=reply_text,
             thread_id=thread_id,
         )
+
+        record_behavior(user_id, "gmail_draft_created", metadata={"recipient": draft.get("recipient", "")})
 
         return jsonify({
             "success": True,

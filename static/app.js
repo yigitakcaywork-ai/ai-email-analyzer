@@ -1332,3 +1332,63 @@ async function completeFollowUp(button) {
 }
 
 document.addEventListener("DOMContentLoaded", initializeFollowUpControls);
+
+
+async function createAutomationRule(button) {
+    const originalText = button.textContent.trim();
+    button.disabled = true;
+    button.textContent = "⏳ Kural oluşturuluyor...";
+    try {
+        const response = await fetch("/automation-rules", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                dimension_type: button.dataset.dimensionType,
+                dimension_value: button.dataset.dimensionValue,
+                action_type: button.dataset.actionType
+            })
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok || !data.success) throw new Error(data.error || "Kural oluşturulamadı.");
+        button.textContent = "✅ Kural oluşturuldu";
+        setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+        window.alert(`Hata: ${error.message}`);
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+async function toggleAutomationRule(button) {
+    const ruleId = button.dataset.ruleId;
+    const currentEnabled = button.dataset.enabled === "true";
+    button.disabled = true;
+    try {
+        const response = await fetch(`/automation-rules/${ruleId}/toggle`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({is_enabled: !currentEnabled})
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok || !data.success) throw new Error(data.error || "Kural güncellenemedi.");
+        window.location.reload();
+    } catch (error) {
+        window.alert(`Hata: ${error.message}`);
+        button.disabled = false;
+    }
+}
+
+async function deleteAutomationRule(button) {
+    if (!window.confirm("Bu otomasyon kuralı silinsin mi?")) return;
+    const ruleId = button.dataset.ruleId;
+    button.disabled = true;
+    try {
+        const response = await fetch(`/automation-rules/${ruleId}`, {method: "DELETE"});
+        const data = await readJsonResponse(response);
+        if (!response.ok || !data.success) throw new Error(data.error || "Kural silinemedi.");
+        window.location.reload();
+    } catch (error) {
+        window.alert(`Hata: ${error.message}`);
+        button.disabled = false;
+    }
+}

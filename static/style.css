@@ -1680,3 +1680,29 @@ button { border: 0; }
         grid-template-columns: 1fr;
     }
 }
+
+
+/* v1.7.1 Smart Suggestions + Automation Rules */
+.automation-center { margin-top: 18px; padding: 20px; border: 1px solid rgba(124,92,255,.22); border-radius: 18px; background: rgba(12,18,34,.58); }
+.automation-center-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.automation-center-header p { margin:6px 0 0; color:#9ea9c0; }
+.automation-count { white-space:nowrap; padding:7px 10px; border-radius:999px; background:rgba(124,92,255,.14); color:#c6b7ff; }
+.suggestion-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+.suggestion-card { padding:16px; border:1px solid rgba(255,255,255,.08); border-radius:15px; background:rgba(255,255,255,.035); }
+.suggestion-card-top { display:flex; justify-content:space-between; gap:12px; color:#9ea9c0; font-size:.78rem; }
+.suggestion-card-top strong { color:#8de7bd; }
+.suggestion-card h4 { margin:10px 0 6px; overflow-wrap:anywhere; }
+.suggestion-card p { color:#aeb8cc; min-height:42px; }
+.suggestion-confidence { height:6px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.08); margin:12px 0; }
+.suggestion-confidence span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#7c5cff,#56d7bd); }
+.create-rule-button { width:100%; border:0; border-radius:11px; padding:10px 12px; cursor:pointer; font-weight:750; color:#fff; background:linear-gradient(135deg,#7657ff,#5d3ee8); }
+.rules-list { margin-top:20px; display:grid; gap:10px; }
+.rules-list > h4 { margin:0 0 4px; }
+.rule-row { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:13px 14px; border:1px solid rgba(255,255,255,.08); border-radius:13px; background:rgba(255,255,255,.03); }
+.rule-row > div:first-child { display:grid; gap:4px; }
+.rule-row span { color:#9ea9c0; font-size:.86rem; }
+.rule-disabled { opacity:.58; }
+.rule-actions { display:flex; gap:8px; }
+.rule-actions button { border:1px solid rgba(255,255,255,.12); border-radius:9px; padding:8px 10px; cursor:pointer; color:#dce3f4; background:rgba(255,255,255,.05); }
+.rule-actions .rule-delete { color:#ff9caa; }
+@media (max-width:700px){ .automation-center-header,.rule-row{align-items:stretch;flex-direction:column}.rule-actions button{flex:1}.rule-actions{display:flex} }

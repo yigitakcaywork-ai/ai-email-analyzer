@@ -253,6 +253,30 @@ def init_database():
             "ON user_behavior_memory(user_id, action_count DESC)"
         )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS automation_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                rule_name TEXT NOT NULL,
+                dimension_type TEXT NOT NULL,
+                dimension_value TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                is_enabled INTEGER NOT NULL DEFAULT 1,
+                use_count INTEGER NOT NULL DEFAULT 0,
+                last_used_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, dimension_type, dimension_value, action_type),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_rules_user_enabled "
+            "ON automation_rules(user_id, is_enabled, created_at DESC)"
+        )
+
         # Önceki davranış günlüklerini ilk açılışta AI hafızasına aktarır.
         connection.execute(
             """
@@ -809,44 +833,180 @@ def get_recent_worker_events(user_id: int, limit: int = 10) -> list[dict]:
     return events
 
 
+def _behavior_confidence(action_count: int) -> int:
+    count = max(0, int(action_count or 0))
+    if count >= 8:
+        return 95
+    if count >= 5:
+        return 80
+    if count >= 3:
+        return 60
+    return 35
+
+
 def get_learning_suggestions(user_id: int, minimum_actions: int = 3) -> list[dict]:
-    """Tekrarlanan gönderici davranışlarından güvenli otomasyon önerileri üretir."""
+    """Onaylanmamış güçlü davranışlardan güvenli kural önerileri üretir."""
     supported_actions = ("archive", "hide", "favorite")
     placeholders = ",".join("?" for _ in supported_actions)
     with get_connection() as connection:
         rows = connection.execute(
             f"""
-            SELECT sender, action_type, COUNT(*) AS total
-            FROM behavior_logs
-            WHERE user_id = ?
-              AND sender IS NOT NULL
-              AND trim(sender) <> ''
-              AND action_type IN ({placeholders})
-            GROUP BY sender, action_type
-            HAVING COUNT(*) >= ?
-            ORDER BY total DESC, sender ASC
-            LIMIT 5
+            SELECT m.dimension_type, m.dimension_value, m.action_type,
+                   m.action_count, m.last_action_at
+            FROM user_behavior_memory AS m
+            LEFT JOIN automation_rules AS r
+              ON r.user_id = m.user_id
+             AND r.dimension_type = m.dimension_type
+             AND r.dimension_value = m.dimension_value
+             AND r.action_type = m.action_type
+            WHERE m.user_id = ?
+              AND m.dimension_type IN ('sender', 'category')
+              AND m.action_type IN ({placeholders})
+              AND m.action_count >= ?
+              AND r.id IS NULL
+            ORDER BY m.action_count DESC, m.last_action_at DESC
+            LIMIT 6
             """,
             (user_id, *supported_actions, minimum_actions),
         ).fetchall()
 
-    labels = {
-        "archive": "arşivliyorsun",
-        "hide": "panelden gizliyorsun",
-        "favorite": "favoriye alıyorsun",
+    action_labels = {
+        "archive": "otomatik arşivle",
+        "hide": "otomatik gizle",
+        "favorite": "otomatik favorile",
+    }
+    observation_labels = {
+        "archive": "arşivledin",
+        "hide": "panelden gizledin",
+        "favorite": "favoriye aldın",
     }
     suggestions = []
     for row in rows:
-        action = str(row["action_type"])
-        sender = str(row["sender"])
-        total = int(row["total"])
+        dimension_type = str(row["dimension_type"] or "")
+        value = str(row["dimension_value"] or "")
+        action = str(row["action_type"] or "")
+        total = int(row["action_count"] or 0)
+        subject_label = "Gönderici" if dimension_type == "sender" else "Kategori"
         suggestions.append({
-            "sender": sender,
+            "dimension_type": dimension_type,
+            "dimension_label": subject_label,
+            "dimension_value": value,
             "action_type": action,
+            "action_label": action_labels[action],
             "count": total,
-            "message": f"{sender} göndericisindeki e-postaları {total} kez {labels[action]}.",
+            "confidence": _behavior_confidence(total),
+            "message": f"{subject_label} için bu e-postaları {total} kez {observation_labels[action]}.",
         })
     return suggestions
+
+
+def create_automation_rule(
+    user_id: int,
+    dimension_type: str,
+    dimension_value: str,
+    action_type: str,
+) -> dict:
+    """Kullanıcı onayıyla güvenli bir otomasyon kuralı oluşturur."""
+    clean_dimension = str(dimension_type or "").strip().lower()
+    clean_value = str(dimension_value or "").strip()
+    clean_action = str(action_type or "").strip().lower()
+    if clean_dimension not in {"sender", "category"}:
+        raise ValueError("Geçersiz kural türü.")
+    if clean_action not in {"archive", "hide", "favorite"}:
+        raise ValueError("Bu işlem otomasyon için desteklenmiyor.")
+    if not clean_value:
+        raise ValueError("Kural değeri boş bırakılamaz.")
+
+    dimension_label = "Gönderici" if clean_dimension == "sender" else "Kategori"
+    action_label = {
+        "archive": "otomatik arşivle",
+        "hide": "otomatik gizle",
+        "favorite": "otomatik favorile",
+    }[clean_action]
+    rule_name = f"{dimension_label}: {clean_value} → {action_label}"
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO automation_rules (
+                user_id, rule_name, dimension_type, dimension_value,
+                action_type, is_enabled, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id, dimension_type, dimension_value, action_type)
+            DO UPDATE SET
+                rule_name = excluded.rule_name,
+                is_enabled = 1,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, rule_name, clean_dimension, clean_value, clean_action),
+        )
+        row = connection.execute(
+            """
+            SELECT id, rule_name, dimension_type, dimension_value, action_type,
+                   is_enabled, use_count, created_at
+            FROM automation_rules
+            WHERE user_id = ? AND dimension_type = ?
+              AND dimension_value = ? AND action_type = ?
+            LIMIT 1
+            """,
+            (user_id, clean_dimension, clean_value, clean_action),
+        ).fetchone()
+        connection.commit()
+    return dict(row)
+
+
+def get_automation_rules(user_id: int) -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, rule_name, dimension_type, dimension_value, action_type,
+                   is_enabled, use_count,
+                   strftime('%d.%m.%Y %H:%M', created_at, 'localtime') AS created_at
+            FROM automation_rules
+            WHERE user_id = ?
+            ORDER BY is_enabled DESC, created_at DESC
+            """,
+            (user_id,),
+        ).fetchall()
+
+    action_labels = {
+        "archive": "Otomatik arşivle",
+        "hide": "Otomatik gizle",
+        "favorite": "Otomatik favorile",
+    }
+    rules = []
+    for row in rows:
+        rule = dict(row)
+        rule["is_enabled"] = bool(rule["is_enabled"])
+        rule["dimension_label"] = "Gönderici" if rule["dimension_type"] == "sender" else "Kategori"
+        rule["action_label"] = action_labels.get(rule["action_type"], "Otomatik işlem")
+        rules.append(rule)
+    return rules
+
+
+def set_automation_rule_enabled(user_id: int, rule_id: int, is_enabled: bool) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE automation_rules
+            SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ?
+            """,
+            (int(bool(is_enabled)), int(rule_id), user_id),
+        )
+        connection.commit()
+    return cursor.rowcount > 0
+
+
+def delete_automation_rule(user_id: int, rule_id: int) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM automation_rules WHERE id = ? AND user_id = ?",
+            (int(rule_id), user_id),
+        )
+        connection.commit()
+    return cursor.rowcount > 0
 
 
 def get_ai_memory(user_id: int, limit: int = 8) -> list[dict]:

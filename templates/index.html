@@ -263,24 +263,63 @@
                     {% endif %}
                 </div>
 
-                {% if learning_suggestions %}
-                    <div class="ai-learning-section">
-                        <div class="ai-learning-title">OTOMASYONA HAZIR DAVRANIŞLAR</div>
-                        {% for suggestion in learning_suggestions %}
-                            <div class="ai-learning-row">
-                                <div>
-                                    <strong>{{ suggestion.sender }}</strong>
-                                    <span>{{ suggestion.message }}</span>
-                                </div>
-                                <span class="ai-learning-badge">{{ suggestion.count }} işlem</span>
-                            </div>
-                        {% endfor %}
+                <div class="automation-center">
+                    <div class="automation-center-header">
+                        <div>
+                            <span class="ai-learning-title">⚡ AKILLI ÖNERİLER VE KURALLAR</span>
+                            <p>Önce sen onaylarsın. Bu sürüm kuralları kaydeder; otomatik uygulama sonraki sürümde açılacak.</p>
+                        </div>
+                        <span class="automation-count">{{ automation_rules|length }} kural</span>
                     </div>
-                {% else %}
-                    <div class="ai-learning-empty">
-                        Aynı göndericide 3 benzer işlemden sonra güvenli otomasyon önerisi sunacağım.
-                    </div>
-                {% endif %}
+
+                    {% if learning_suggestions %}
+                        <div class="suggestion-grid">
+                            {% for suggestion in learning_suggestions %}
+                                <article class="suggestion-card">
+                                    <div class="suggestion-card-top">
+                                        <span>{{ suggestion.dimension_label }}</span>
+                                        <strong>%{{ suggestion.confidence }} güven</strong>
+                                    </div>
+                                    <h4>{{ suggestion.dimension_value }}</h4>
+                                    <p>{{ suggestion.message }}</p>
+                                    <div class="suggestion-confidence"><span style="width: {{ suggestion.confidence }}%"></span></div>
+                                    <button
+                                        type="button"
+                                        class="create-rule-button"
+                                        data-dimension-type="{{ suggestion.dimension_type }}"
+                                        data-dimension-value="{{ suggestion.dimension_value }}"
+                                        data-action-type="{{ suggestion.action_type }}"
+                                        onclick="createAutomationRule(this)"
+                                    >⚡ Bundan sonra {{ suggestion.action_label }}</button>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="ai-learning-empty">
+                            Yeni öneri yok. Aynı gönderici veya kategoride 3 benzer işlemden sonra burada öneri oluşacak.
+                        </div>
+                    {% endif %}
+
+                    {% if automation_rules %}
+                        <div class="rules-list">
+                            <h4>Aktif kuralların</h4>
+                            {% for rule in automation_rules %}
+                                <article class="rule-row {{ '' if rule.is_enabled else 'rule-disabled' }}">
+                                    <div>
+                                        <strong>{{ rule.dimension_label }}: {{ rule.dimension_value }}</strong>
+                                        <span>{{ rule.action_label }} · {{ rule.created_at }}</span>
+                                    </div>
+                                    <div class="rule-actions">
+                                        <button type="button" onclick="toggleAutomationRule(this)" data-rule-id="{{ rule.id }}" data-enabled="{{ 'true' if rule.is_enabled else 'false' }}">
+                                            {{ '⏸ Duraklat' if rule.is_enabled else '▶ Etkinleştir' }}
+                                        </button>
+                                        <button type="button" class="rule-delete" onclick="deleteAutomationRule(this)" data-rule-id="{{ rule.id }}">Sil</button>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
             </section>
 
             <section class="smart-dashboard" aria-label="Akıllı gelen kutusu özeti">

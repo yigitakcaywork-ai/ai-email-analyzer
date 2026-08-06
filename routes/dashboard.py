@@ -15,6 +15,7 @@ from database import (
     get_recent_worker_events,
     get_ai_memory,
     get_ai_memory_stats,
+    get_automation_rules,
     record_behavior,
 )
 from services.gmail_service import get_recent_emails
@@ -318,6 +319,7 @@ def create_dashboard_data(
     learning_suggestions = get_learning_suggestions(user_id)
     ai_memory = get_ai_memory(user_id, limit=8)
     ai_memory_stats = get_ai_memory_stats(user_id)
+    automation_rules = get_automation_rules(user_id)
     automated_count = behavior_counts.get("automation", 0)
     completed_action_count = sum(
         behavior_counts.get(action, 0)
@@ -384,6 +386,7 @@ def create_dashboard_data(
         "worker_events": worker_events,
         "ai_memory": ai_memory,
         "ai_memory_stats": ai_memory_stats,
+        "automation_rules": automation_rules,
     }
 
 def render_dashboard(

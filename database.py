@@ -820,6 +820,9 @@ def get_recent_worker_events(user_id: int, limit: int = 10) -> list[dict]:
         elif action == "automation":
             message = str(metadata.get("message", "Otomatik işlem tamamlandı."))
             icon = "🤖"
+        elif action == "automation_failed":
+            message = str(metadata.get("message", "Otomatik işlem uygulanamadı."))
+            icon = "⚠️"
         else:
             continue
 
@@ -962,7 +965,8 @@ def get_automation_rules(user_id: int) -> list[dict]:
             """
             SELECT id, rule_name, dimension_type, dimension_value, action_type,
                    is_enabled, use_count,
-                   strftime('%d.%m.%Y %H:%M', created_at, 'localtime') AS created_at
+                   strftime('%d.%m.%Y %H:%M', created_at, 'localtime') AS created_at,
+                   strftime('%d.%m.%Y %H:%M', last_used_at, 'localtime') AS last_used_at
             FROM automation_rules
             WHERE user_id = ?
             ORDER BY is_enabled DESC, created_at DESC
@@ -983,6 +987,58 @@ def get_automation_rules(user_id: int) -> list[dict]:
         rule["action_label"] = action_labels.get(rule["action_type"], "Otomatik işlem")
         rules.append(rule)
     return rules
+
+
+def get_matching_automation_rules(
+    user_id: int,
+    sender: str = "",
+    category: str = "",
+) -> list[dict]:
+    """Yeni bir e-postayla eşleşen aktif ve güvenli kuralları döndürür."""
+    clean_sender = str(sender or "").strip()
+    clean_category = str(category or "").strip()
+    if not clean_sender and not clean_category:
+        return []
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, rule_name, dimension_type, dimension_value,
+                   action_type, use_count
+            FROM automation_rules
+            WHERE user_id = ?
+              AND is_enabled = 1
+              AND action_type IN ('archive', 'hide', 'favorite')
+              AND (
+                    (dimension_type = 'sender'
+                     AND lower(trim(dimension_value)) = lower(trim(?)))
+                 OR (dimension_type = 'category'
+                     AND lower(trim(dimension_value)) = lower(trim(?)))
+              )
+            ORDER BY
+                CASE dimension_type WHEN 'sender' THEN 0 ELSE 1 END,
+                id ASC
+            """,
+            (user_id, clean_sender, clean_category),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def mark_automation_rule_used(user_id: int, rule_id: int) -> bool:
+    """Başarıyla uygulanan kuralın kullanım sayısını ve zamanını günceller."""
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE automation_rules
+            SET use_count = use_count + 1,
+                last_used_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND user_id = ? AND is_enabled = 1
+            """,
+            (int(rule_id), user_id),
+        )
+        connection.commit()
+    return cursor.rowcount > 0
 
 
 def set_automation_rule_enabled(user_id: int, rule_id: int, is_enabled: bool) -> bool:

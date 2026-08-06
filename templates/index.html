@@ -267,7 +267,7 @@
                     <div class="automation-center-header">
                         <div>
                             <span class="ai-learning-title">⚡ AKILLI ÖNERİLER VE KURALLAR</span>
-                            <p>Önce sen onaylarsın. Bu sürüm kuralları kaydeder; otomatik uygulama sonraki sürümde açılacak.</p>
+                            <p>Önce sen onaylarsın. Onayladığın aktif kurallar yeni analiz edilen e-postalara otomatik uygulanır.</p>
                         </div>
                         <span class="automation-count">{{ automation_rules|length }} kural</span>
                     </div>
@@ -307,7 +307,7 @@
                                 <article class="rule-row {{ '' if rule.is_enabled else 'rule-disabled' }}">
                                     <div>
                                         <strong>{{ rule.dimension_label }}: {{ rule.dimension_value }}</strong>
-                                        <span>{{ rule.action_label }} · {{ rule.created_at }}</span>
+                                        <span>{{ rule.action_label }} · {{ rule.created_at }}{% if rule.use_count %} · {{ rule.use_count }} kez uygulandı{% endif %}</span>
                                     </div>
                                     <div class="rule-actions">
                                         <button type="button" onclick="toggleAutomationRule(this)" data-rule-id="{{ rule.id }}" data-enabled="{{ 'true' if rule.is_enabled else 'false' }}">

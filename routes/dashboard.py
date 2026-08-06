@@ -18,6 +18,7 @@ from database import (
     get_automation_rules,
     record_behavior,
 )
+from services.automation_engine import apply_automation_rules
 from services.gmail_service import get_recent_emails
 from services.gemini_service import analyze_emails
 
@@ -456,6 +457,8 @@ def analyze():
         scan_urgent_count = 0
         scan_reply_count = 0
         scan_cleanable_count = 0
+        automated_action_count = 0
+        automation_failure_count = 0
 
         if emails_to_analyze:
             analyses = analyze_emails(
@@ -471,6 +474,13 @@ def analyze():
                     email=email,
                     analysis=analysis,
                 )
+                automation_result = apply_automation_rules(
+                    user_id=user_id,
+                    email=email,
+                    analysis=analysis,
+                )
+                automated_action_count += len(automation_result["applied"])
+                automation_failure_count += len(automation_result["failed"])
 
             scan_urgent_count = sum(
                 1 for analysis in analyses
@@ -489,6 +499,16 @@ def analyze():
                 f"{len(emails_to_analyze)} yeni "
                 "e-posta başarıyla analiz edildi."
             )
+            if automated_action_count > 0:
+                status_message += (
+                    f" AI çalışanı {automated_action_count} onaylı otomasyon "
+                    "işlemi uyguladı."
+                )
+            if automation_failure_count > 0:
+                status_message += (
+                    f" {automation_failure_count} otomasyon işlemi uygulanamadı; "
+                    "ayrıntılar çalışan günlüğüne kaydedildi."
+                )
         else:
             status_message = (
                 "Yeni e-posta bulunamadı. "
@@ -512,6 +532,8 @@ def analyze():
                 "reply_needed_count": scan_reply_count,
                 "cleanable_count": scan_cleanable_count,
                 "remaining_count": remaining_count,
+                "automated_action_count": automated_action_count,
+                "automation_failure_count": automation_failure_count,
             },
         )
 

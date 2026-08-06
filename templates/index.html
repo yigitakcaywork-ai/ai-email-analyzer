@@ -191,7 +191,8 @@
                     </article>
 
                     <div class="ai-worker-metrics">
-                        <div><strong>{{ ai_worker_report.analyzed_today }}</strong><span>Bugün incelendi</span></div>
+                        <div><strong>{{ ai_worker_report.analyzed_today }}</strong><span>Bugün analiz edildi</span></div>
+                        <div><strong>{{ ai_worker_report.scan_today }}</strong><span>Bugünkü tarama</span></div>
                         <div><strong>{{ ai_worker_report.urgent }}</strong><span>Acil</span></div>
                         <div><strong>{{ ai_worker_report.reply_needed }}</strong><span>Cevap bekliyor</span></div>
                         <div><strong>{{ ai_worker_report.cleanable }}</strong><span>Temizlenebilir</span></div>
@@ -226,9 +227,45 @@
                     {% endif %}
                 </div>
 
+                <div class="ai-memory-section">
+                    <div class="ai-memory-header">
+                        <div>
+                            <span class="ai-learning-title">🧠 AI HAFIZASI</span>
+                            <p>Gönderici ve kategori bazlı alışkanlıklarını kalıcı olarak öğreniyorum.</p>
+                        </div>
+                        <div class="ai-memory-stats">
+                            <span><strong>{{ ai_memory_stats.observations }}</strong> gözlem</span>
+                            <span><strong>{{ ai_memory_stats.learned }}</strong> öğrenilen alışkanlık</span>
+                        </div>
+                    </div>
+
+                    {% if ai_memory %}
+                        <div class="ai-memory-grid">
+                            {% for memory in ai_memory %}
+                                <article class="ai-memory-card">
+                                    <div class="ai-memory-card-top">
+                                        <span class="ai-memory-dimension">{{ memory.dimension_label }}</span>
+                                        <span class="ai-memory-level">{{ memory.level }}</span>
+                                    </div>
+                                    <strong>{{ memory.value }}</strong>
+                                    <p>{{ memory.action_label }} davranışını {{ memory.count }} kez gözlemledim.</p>
+                                    <div class="ai-memory-confidence">
+                                        <span style="width: {{ memory.confidence }}%"></span>
+                                    </div>
+                                    <small>Güven: %{{ memory.confidence }} · Son işlem: {{ memory.last_used }}</small>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="ai-learning-empty">
+                            Hafızam henüz boş. Arşivleme, gizleme, favori, takip ve cevap işlemlerinden sonra seni öğrenmeye başlayacağım.
+                        </div>
+                    {% endif %}
+                </div>
+
                 {% if learning_suggestions %}
                     <div class="ai-learning-section">
-                        <div class="ai-learning-title">ÖĞRENİLEN DAVRANIŞLAR</div>
+                        <div class="ai-learning-title">OTOMASYONA HAZIR DAVRANIŞLAR</div>
                         {% for suggestion in learning_suggestions %}
                             <div class="ai-learning-row">
                                 <div>
@@ -241,7 +278,7 @@
                     </div>
                 {% else %}
                     <div class="ai-learning-empty">
-                        İşlemlerini gözlemliyorum. Aynı göndericide 3 benzer işlemden sonra otomasyon önerisi sunacağım.
+                        Aynı göndericide 3 benzer işlemden sonra güvenli otomasyon önerisi sunacağım.
                     </div>
                 {% endif %}
             </section>

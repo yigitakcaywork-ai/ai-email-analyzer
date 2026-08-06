@@ -232,6 +232,67 @@ def init_database():
             "ON behavior_logs(user_id, sender, action_type)"
         )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_behavior_memory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                dimension_type TEXT NOT NULL,
+                dimension_value TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                action_count INTEGER NOT NULL DEFAULT 0,
+                first_action_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_action_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, dimension_type, dimension_value, action_type),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_user_count "
+            "ON user_behavior_memory(user_id, action_count DESC)"
+        )
+
+        # Önceki davranış günlüklerini ilk açılışta AI hafızasına aktarır.
+        connection.execute(
+            """
+            INSERT INTO user_behavior_memory (
+                user_id, dimension_type, dimension_value, action_type,
+                action_count, first_action_at, last_action_at
+            )
+            SELECT user_id, 'sender', sender, action_type, COUNT(*),
+                   MIN(created_at), MAX(created_at)
+            FROM behavior_logs
+            WHERE sender IS NOT NULL AND trim(sender) <> ''
+              AND action_type IN ('archive', 'hide', 'favorite', 'follow_up', 'reply_generated', 'gmail_draft_created')
+            GROUP BY user_id, sender, action_type
+            ON CONFLICT(user_id, dimension_type, dimension_value, action_type)
+            DO UPDATE SET
+                action_count = excluded.action_count,
+                first_action_at = excluded.first_action_at,
+                last_action_at = excluded.last_action_at
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO user_behavior_memory (
+                user_id, dimension_type, dimension_value, action_type,
+                action_count, first_action_at, last_action_at
+            )
+            SELECT user_id, 'category', category, action_type, COUNT(*),
+                   MIN(created_at), MAX(created_at)
+            FROM behavior_logs
+            WHERE category IS NOT NULL AND trim(category) <> ''
+              AND action_type IN ('archive', 'hide', 'favorite', 'follow_up', 'reply_generated', 'gmail_draft_created')
+            GROUP BY user_id, category, action_type
+            ON CONFLICT(user_id, dimension_type, dimension_value, action_type)
+            DO UPDATE SET
+                action_count = excluded.action_count,
+                first_action_at = excluded.first_action_at,
+                last_action_at = excluded.last_action_at
+            """
+        )
+
         _migrate_emails_table(connection)
         _migrate_app_settings(connection)
         connection.execute("UPDATE emails SET user_id = ? WHERE user_id IS NULL", (LOCAL_USER_ID,))
@@ -578,6 +639,34 @@ def record_behavior(
                 json.dumps(metadata or {}, ensure_ascii=False),
             ),
         )
+
+        memory_actions = {
+            "archive", "hide", "favorite", "follow_up",
+            "reply_generated", "gmail_draft_created",
+        }
+        if clean_action in memory_actions:
+            for dimension_type, dimension_value in (
+                ("sender", sender),
+                ("category", category),
+            ):
+                clean_value = str(dimension_value or "").strip()
+                if not clean_value:
+                    continue
+                connection.execute(
+                    """
+                    INSERT INTO user_behavior_memory (
+                        user_id, dimension_type, dimension_value, action_type,
+                        action_count, first_action_at, last_action_at
+                    )
+                    VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT(user_id, dimension_type, dimension_value, action_type)
+                    DO UPDATE SET
+                        action_count = user_behavior_memory.action_count + 1,
+                        last_action_at = CURRENT_TIMESTAMP
+                    """,
+                    (user_id, dimension_type, clean_value, clean_action),
+                )
+
         connection.commit()
 
 
@@ -598,14 +687,40 @@ def get_today_behavior_counts(user_id: int) -> dict:
 
 
 def get_today_analyzed_count(user_id: int) -> int:
-    """Bugün gerçekten analiz edilen e-posta sayısını döndürür."""
+    """Bugünkü taramalarda gerçekten analiz edilen toplam yeni e-posta sayısı."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT metadata_json
+            FROM behavior_logs
+            WHERE user_id = ?
+              AND action_type = 'scan_completed'
+              AND date(created_at, 'localtime') = date('now', 'localtime')
+            """,
+            (user_id,),
+        ).fetchall()
+
+    total = 0
+    for row in rows:
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            metadata = {}
+        total += max(0, int(metadata.get("analyzed_count", 0) or 0))
+
+    return total
+
+
+def get_today_scan_count(user_id: int) -> int:
+    """Bugün tamamlanan Gmail taraması sayısını döndürür."""
     with get_connection() as connection:
         result = connection.execute(
             """
             SELECT COUNT(*) AS total
-            FROM emails
+            FROM behavior_logs
             WHERE user_id = ?
-              AND date(analyzed_at, 'localtime') = date('now', 'localtime')
+              AND action_type = 'scan_completed'
+              AND date(created_at, 'localtime') = date('now', 'localtime')
             """,
             (user_id,),
         ).fetchone()
@@ -642,11 +757,22 @@ def get_recent_worker_events(user_id: int, limit: int = 10) -> list[dict]:
             urgent = int(metadata.get("urgent_count", 0) or 0)
             reply = int(metadata.get("reply_needed_count", 0) or 0)
             cleanable = int(metadata.get("cleanable_count", 0) or 0)
-            message = (
-                f"{count} yeni e-posta analiz edildi; "
-                f"{urgent} acil, {reply} cevap bekleyen ve "
-                f"{cleanable} temizlenebilir mesaj bulundu."
-            )
+            scanned = int(metadata.get("scanned_count", 0) or 0)
+            remaining = int(metadata.get("remaining_count", 0) or 0)
+
+            if count > 0:
+                message = (
+                    f"{count} yeni e-posta analiz edildi; "
+                    f"{urgent} acil, {reply} cevap bekleyen ve "
+                    f"{cleanable} temizlenebilir mesaj bulundu."
+                )
+                if remaining > 0:
+                    message += f" {remaining} yeni mesaj sonraki taramaya bırakıldı."
+            else:
+                message = (
+                    f"Gelen kutusu tarandı ({scanned} mesaj kontrol edildi); "
+                    "analiz edilecek yeni e-posta bulunamadı."
+                )
             icon = "🔎"
         elif action == "archive":
             message = f"{sender or 'Bir e-posta'} Gmail’de arşivlendi."
@@ -721,3 +847,75 @@ def get_learning_suggestions(user_id: int, minimum_actions: int = 3) -> list[dic
             "message": f"{sender} göndericisindeki e-postaları {total} kez {labels[action]}.",
         })
     return suggestions
+
+
+def get_ai_memory(user_id: int, limit: int = 8) -> list[dict]:
+    """Kullanıcının en güçlü davranış alışkanlıklarını döndürür."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT dimension_type, dimension_value, action_type, action_count,
+                   strftime('%d.%m.%Y', last_action_at, 'localtime') AS last_used
+            FROM user_behavior_memory
+            WHERE user_id = ?
+            ORDER BY action_count DESC, last_action_at DESC
+            LIMIT ?
+            """,
+            (user_id, max(1, min(int(limit), 20))),
+        ).fetchall()
+
+    action_labels = {
+        "archive": "arşivleme",
+        "hide": "panelden gizleme",
+        "favorite": "favoriye alma",
+        "follow_up": "takibe alma",
+        "reply_generated": "AI cevap hazırlama",
+        "gmail_draft_created": "Gmail taslağı kaydetme",
+    }
+    memories = []
+    for row in rows:
+        count = int(row["action_count"] or 0)
+        if count >= 8:
+            level, confidence = "Güçlü alışkanlık", 95
+        elif count >= 5:
+            level, confidence = "Öğrenildi", 80
+        elif count >= 3:
+            level, confidence = "Gelişen alışkanlık", 60
+        else:
+            level, confidence = "Gözlemleniyor", 35
+
+        dimension_type = str(row["dimension_type"] or "")
+        value = str(row["dimension_value"] or "")
+        subject_label = "Gönderici" if dimension_type == "sender" else "Kategori"
+        memories.append({
+            "dimension_type": dimension_type,
+            "dimension_label": subject_label,
+            "value": value,
+            "action_type": str(row["action_type"] or ""),
+            "action_label": action_labels.get(str(row["action_type"] or ""), "işlem"),
+            "count": count,
+            "level": level,
+            "confidence": confidence,
+            "last_used": str(row["last_used"] or ""),
+        })
+    return memories
+
+
+def get_ai_memory_stats(user_id: int) -> dict:
+    """AI hafızasının kullanıcı için ne kadar veri öğrendiğini özetler."""
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT COUNT(*) AS patterns,
+                   COALESCE(SUM(action_count), 0) AS observations,
+                   COALESCE(SUM(CASE WHEN action_count >= 3 THEN 1 ELSE 0 END), 0) AS learned
+            FROM user_behavior_memory
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+    return {
+        "patterns": int(row["patterns"] or 0),
+        "observations": int(row["observations"] or 0),
+        "learned": int(row["learned"] or 0),
+    }

@@ -1552,3 +1552,131 @@ button { border: 0; }
     .ai-worker-log-header { flex-direction: column; }
     .ai-worker-event { grid-template-columns: 44px 28px 1fr; font-size: .9rem; }
 }
+
+/* v1.7.0 — AI Memory */
+.ai-memory-section {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid rgba(129, 92, 246, 0.25);
+    border-radius: 18px;
+    background: rgba(10, 18, 38, 0.42);
+}
+
+.ai-memory-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.ai-memory-header p {
+    margin: 6px 0 0;
+    color: var(--muted, #9ba8c3);
+}
+
+.ai-memory-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.ai-memory-stats span {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(79, 70, 229, 0.16);
+    border: 1px solid rgba(129, 92, 246, 0.25);
+    color: #cfd8ff;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.ai-memory-stats strong {
+    color: #ffffff;
+}
+
+.ai-memory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ai-memory-card {
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(20, 31, 57, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.13);
+}
+
+.ai-memory-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 9px;
+}
+
+.ai-memory-dimension,
+.ai-memory-level {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ai-memory-dimension {
+    color: #8fb3ff;
+}
+
+.ai-memory-level {
+    color: #67e8b5;
+}
+
+.ai-memory-card > strong {
+    display: block;
+    overflow: hidden;
+    color: #f8fafc;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-memory-card p {
+    margin: 8px 0 11px;
+    color: #aab6ce;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.ai-memory-confidence {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+}
+
+.ai-memory-confidence span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #7c3aed, #2563eb, #10b981);
+}
+
+.ai-memory-card small {
+    display: block;
+    margin-top: 8px;
+    color: #7685a3;
+}
+
+@media (max-width: 760px) {
+    .ai-memory-header {
+        flex-direction: column;
+    }
+
+    .ai-memory-stats {
+        justify-content: flex-start;
+    }
+
+    .ai-memory-grid {
+        grid-template-columns: 1fr;
+    }
+}

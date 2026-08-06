@@ -11,7 +11,10 @@ from database import (
     get_learning_suggestions,
     get_today_behavior_counts,
     get_today_analyzed_count,
+    get_today_scan_count,
     get_recent_worker_events,
+    get_ai_memory,
+    get_ai_memory_stats,
     record_behavior,
 )
 from services.gmail_service import get_recent_emails
@@ -310,8 +313,11 @@ def create_dashboard_data(
 
     behavior_counts = get_today_behavior_counts(user_id)
     analyzed_today_count = get_today_analyzed_count(user_id)
+    scan_today_count = get_today_scan_count(user_id)
     worker_events = get_recent_worker_events(user_id, limit=10)
     learning_suggestions = get_learning_suggestions(user_id)
+    ai_memory = get_ai_memory(user_id, limit=8)
+    ai_memory_stats = get_ai_memory_stats(user_id)
     automated_count = behavior_counts.get("automation", 0)
     completed_action_count = sum(
         behavior_counts.get(action, 0)
@@ -319,9 +325,11 @@ def create_dashboard_data(
     )
 
     worker_summary = (
-        f"Bugün {analyzed_today_count} e-posta analiz ettim. "
-        f"{urgent_count} acil, {reply_needed_count} cevap bekleyen ve "
-        f"{clutter_count} temizlenebilir e-posta tespit ettim."
+        f"Bugün {scan_today_count} kez gelen kutunu taradım ve "
+        f"{analyzed_today_count} yeni e-postayı analiz ettim. "
+        f"Gelen kutunda şu anda {urgent_count} acil, "
+        f"{reply_needed_count} cevap bekleyen ve "
+        f"{clutter_count} temizlenebilir e-posta var."
     )
 
     if overdue_follow_up_count > 0:
@@ -339,6 +347,7 @@ def create_dashboard_data(
         "summary": worker_summary,
         "next_step": worker_next_step,
         "analyzed_today": analyzed_today_count,
+        "scan_today": scan_today_count,
         "urgent": urgent_count,
         "reply_needed": reply_needed_count,
         "cleanable": clutter_count,
@@ -373,6 +382,8 @@ def create_dashboard_data(
         "behavior_counts": behavior_counts,
         "learning_suggestions": learning_suggestions,
         "worker_events": worker_events,
+        "ai_memory": ai_memory,
+        "ai_memory_stats": ai_memory_stats,
     }
 
 def render_dashboard(
@@ -439,6 +450,10 @@ def analyze():
             :NEW_EMAIL_LIMIT
         ]
 
+        scan_urgent_count = 0
+        scan_reply_count = 0
+        scan_cleanable_count = 0
+
         if emails_to_analyze:
             analyses = analyze_emails(
                 emails_to_analyze
@@ -466,16 +481,6 @@ def analyze():
                 1 for analysis in analyses
                 if analysis.get("category") in {"Reklam", "Bildirim", "Sosyal"}
             )
-            record_behavior(
-                user_id=user_id,
-                action_type="scan_completed",
-                metadata={
-                    "analyzed_count": len(emails_to_analyze),
-                    "urgent_count": scan_urgent_count,
-                    "reply_needed_count": scan_reply_count,
-                    "cleanable_count": scan_cleanable_count,
-                },
-            )
 
             status_message = (
                 f"{len(emails_to_analyze)} yeni "
@@ -490,6 +495,21 @@ def analyze():
         remaining_count = max(
             len(new_emails) - len(emails_to_analyze),
             0,
+        )
+
+        # Her tarama günlükte görünür; yeni e-posta bulunmasa bile
+        # AI çalışanın gelen kutusunu kontrol ettiği kaydedilir.
+        record_behavior(
+            user_id=user_id,
+            action_type="scan_completed",
+            metadata={
+                "scanned_count": len(gmail_emails),
+                "analyzed_count": len(emails_to_analyze),
+                "urgent_count": scan_urgent_count,
+                "reply_needed_count": scan_reply_count,
+                "cleanable_count": scan_cleanable_count,
+                "remaining_count": remaining_count,
+            },
         )
 
         return render_dashboard(
